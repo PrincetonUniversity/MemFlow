@@ -1,0 +1,128 @@
+#include<iostream>
+#include<vector>
+#include<array>
+#include<map>
+#include<fstream>
+
+#include"SSAGen.hpp"
+#include"Hardware.hpp"
+//#include"MinLive.hpp"
+#include"MinSpill.hpp"
+
+using namespace std;
+
+int main(){
+   vector<array<int,2>> ssa;
+   array<int,3> ssa_seg;
+   int m = 2;
+   int n = 2;
+   int k = 8;
+   SSAGen2(ssa,ssa_seg,m,n,k);
+   //SSAGen(ssa,n,m);
+   cout << "SSA" << endl;
+   for(int i=0; i<ssa.size(); i++){
+      cout << "inst" << i << ":";
+      cout << ssa[i][0] << " ";
+      cout << ssa[i][1] << endl;
+   }
+
+   cout << "insts size: " << ssa.size()-1 << endl;
+   
+   vector<vector<int>> blocks;
+   vector<int> block_type;
+   vector<int> block_latency;
+   map<int, vector<int>> tile_size;
+   
+   
+   //specify tile size
+   //matrix mul
+   tile_size[1].push_back(1);
+   tile_size[1].push_back(2);
+   tile_size[2].push_back(2);
+   tile_size[2].push_back(2); 
+  //pca
+   /*
+   tile_size[1].push_back(2);
+   tile_size[1].push_back(2);
+   tile_size[2].push_back(1);
+   tile_size[2].push_back(2);
+   tile_size[3].push_back(1);
+   tile_size[3].push_back(2);
+   tile_size[4].push_back(2);
+   tile_size[4].push_back(2);
+   tile_size[5].push_back(3);
+   tile_size[5].push_back(2);
+   tile_size[6].push_back(1);
+   tile_size[6].push_back(2);
+   tile_size[7].push_back(1);
+   tile_size[7].push_back(2);
+   tile_size[8].push_back(2);
+   tile_size[8].push_back(2);
+   tile_size[9].push_back(1);
+   tile_size[9].push_back(2);
+   */
+
+   //compute uses of each inst
+   vector<vector<int>> uses;
+   DefUses(ssa,uses);
+
+   vector<vector<int>> pred_blocks;
+   vector<vector<int>> liveout_inst;
+   vector<map<int,vector<int>>> post_blocks;
+   TileGen(ssa,ssa_seg,uses,m,n,k,tile_size,blocks,block_type,block_latency,pred_blocks,liveout_inst,post_blocks);
+
+   cout << "blocks size: " << blocks.size() << endl;
+   //process the block assignment and get the related information
+   //pred_blocks: the precedence blocks of each block
+   //used_inst: instructions used by other blocks of each block
+   //use_blocks: the user blocks of each block
+
+   cout << "blocks:" << endl;
+   for(int i=0; i<blocks.size(); i++){
+      cout << "block " << i << ": ";
+      for(int j=0; j<blocks[i].size(); j++){
+         cout << blocks[i][j] << " ";
+      }
+      cout << endl;
+      cout << "type: " << block_type[i] << endl;
+      cout << "latency: " << block_latency[i] << endl;
+      cout << " pred:";
+      for(int j=0; j<pred_blocks[i].size(); j++){
+         cout << pred_blocks[i][j] << " ";
+      }
+      cout << endl;
+      cout << " liveout inst and its post blocks:" << endl;
+      for(int j=0; j<liveout_inst[i].size(); j++){
+         cout << liveout_inst[i][j] <<" used by: ";
+	 for(int l=0; l<post_blocks[i][liveout_inst[i][j]].size(); l++){
+            cout << post_blocks[i][liveout_inst[i][j]][l] << " "; 
+         }
+	 cout << endl;
+      }
+      cout << endl;
+   }
+  
+   //output block pred info to a file, written by ReadSMT.cpp
+   fstream myfile;
+   myfile.open("block_info.txt");
+   for(int i=0; i<blocks.size(); i++){
+      myfile << "block" << i << ":";
+      for(int j=0; j<pred_blocks[i].size(); j++){
+         myfile << pred_blocks[i][j] << ",";
+      }  
+      myfile << endl;
+   }
+   myfile.close();
+
+   //cout << "inst's block: " << endl;
+   //for(int i=1; i<ssa.size(); i++){
+   //   cout << "inst " << i << ":" << inst_block[i] << endl;
+   //}
+
+   int block_size = blocks.size();
+   int mem_bound = 5;
+   int spill_bound = 0;
+   FixMinSpillSche(block_type, block_latency, pred_blocks, liveout_inst, post_blocks, block_size, mem_bound, spill_bound);
+   //FixMinLiveSche(block_type, block_latency, pred_blocks, used_inst, use_blocks, block_size, mem_bound);
+   //MaxUnsatSche(block_type, block_latency, pred_blocks, used_inst, use_blocks, block_size);
+}

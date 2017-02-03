@@ -1,0 +1,17 @@
+Compute blocks: name, depth, width, number_cb
+load, 1, 1, 100
+store, 1, 1, 100
+sub, 1, 1, 100
+div, 1, 1, 100
+div_root, 1, 1, 100
+mul_acc, 8, 1, 100
+acc, 8, 1, 100
+root_s, 1, 1, 100
+div_s, 1, 1, 100
+jacobi_s, 1, 1, 100
+givens_s, 1, 1, 100
+
+Memory: banksize, computesize, number_port
+40, 10, 2
+40, 10, 2
+40, 10, 2
