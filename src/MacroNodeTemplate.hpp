@@ -11,12 +11,18 @@
 
 using namespace std;
 
+struct rw_info{
+  int cycle;
+  array<int,2> addr;
+};
+
 struct tile_sche{
   int start;
   int end;
   int tile_idx;
-  map<int,array<int,2>> inop_addr;
-  map<int,array<int,2>> outop_addr;
+  int cb_idx;
+  map<int,rw_info> inop;
+  map<int,rw_info> outop;
 };
 
 struct spill_sche{

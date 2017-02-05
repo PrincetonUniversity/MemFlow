@@ -100,8 +100,10 @@ class TileScheduling{
   bool HasReadWrite(int cycle, int tile);
   void ScheduleTile(int tile);
  
-  int FindCycle_dblks(int tile);
-  void AllocateTile_dblks(int tile, int cycle);
+  bool MoveBarrierRead(int tile, int op, int orig_read, int tile_sche_idx);
+  int FindCycle_dblks(int tile, int tile_sche_idx, map<int,int>&inop_read_cycle);
+  void FindCB_dblks(int tile);
+  void AllocateTile_dblks(int tile, int cycle, int cb_idx, map<int,int> &read_cycle);
   void Scheduling_dblks();
 
   void PrintNumPort(int mem_bank);
@@ -131,13 +133,16 @@ class TileScheduling{
   map<int, vector<int>> op_spills;
   //key: op idx, vector: spill idx
   MacroNodeTemplate& macro;
+  vector<int> cb_tile_sche;
+  //last tile_sche that use this cb
+  map<int, set<int>> op_read_cycles;
+
 
   //int num_type; 
   //num of compute tile type in the current scheduling
   int last_cycle;
   //num of cycles in the current scheduling
   int sum_cycle;
-
 
   //hw allocation
   map<string,vector<int>> num_cb;

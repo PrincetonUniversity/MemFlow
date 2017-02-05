@@ -30,6 +30,8 @@ public:
 	vector<int> pred_tiles;
 	vector<int> liveout_ops;
 	map<int, vector<int>> post_tiles;
+
+	int tile_sche_idx;
 };
 
 #endif
