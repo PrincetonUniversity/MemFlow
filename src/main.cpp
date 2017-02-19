@@ -30,7 +30,6 @@ namespace Memory{
 Parameters opti_para;
 
 int main(int argc, char* argv[]){
-  //testing show up in master?
 
   //input data size
   int m;
