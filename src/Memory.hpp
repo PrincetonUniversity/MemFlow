@@ -12,7 +12,7 @@ using namespace std;
 class MemoryTrack{
   public:
     MemoryTrack(Parameters &in_opti_para);
-    MemoryTrack(vector<int> &ops, bool use_compute_size, Parameters &in_opti_para);
+    MemoryTrack(vector<int> &ops, Parameters &in_opti_para);
     ~MemoryTrack(){};
 
     void setBankSize(int bank_i, int size);
@@ -53,12 +53,6 @@ class MemoryTrack{
 
     void getMaxNumLive();
 
-
-    void Slice2Blocks(int blk_dimi, int blk_dimj, int blk_diml, int m, int n, int k);
-    int getBase_a(int idx);
-    int getBase_b(int idx);
-    int getBase_c(int idx);
-
     int begin;
 
     int num_bank;
@@ -87,9 +81,12 @@ class MemoryTrack{
 
 
     void Slice2Dblks();
-    array<int,2> getAddr_a_ele(int dblk_idx, int m, int n, int i, int j);
-    array<int,2> getAddr_b_ele(int dblk_idx, int m, int n, int i, int j);
-    array<int,2> getAddr_c_ele(int dblk_idx, int m, int n, int i, int j, int in_out_latency);
+    int getBase_a(int blk_idx);
+    int getBase_b(int blk_idx);
+    int getBase_c(int blk_idx);
+    array<int,2> getAddr_a_ele(int base, int m, int n, int i, int j);
+    array<int,2> getAddr_b_ele(int base, int m, int n, int i, int j);
+    array<int,2> getAddr_c_ele(int base, int m, int n, int i, int j, int in_out_latency);
 
     Parameters& opti_para;
     int num_bank_a;

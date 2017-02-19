@@ -31,6 +31,7 @@ Parameters opti_para;
 
 int main(int argc, char* argv[]){
 
+  //uncommited change
   //input data size
   int m;
   int n;
@@ -52,20 +53,10 @@ int main(int argc, char* argv[]){
   //process config file
   readConfig();
 
-  int total_mem_size = 0;
-  for(int i=0; i<Memory::num_bank; i++){
-    total_mem_size += (Memory::membanks[i].size-Memory::membanks[i].compute_size);
-  }
-
-  //int tile_dimi = 1;
-  //int tile_dimj = 1;
-  //int tile_diml = ComputeBlockLib::cbs["mul_acc"]->max_depth;
 
   //Parameters opti_para;
   OptiMacroNode opti(m, n, k, opti_para);
   opti.optiPara();
-
-  //opti.genMNSize_tile();
 
   cout << endl << "Optimized blocking " << endl;
   cout << "blk dimi: " << opti_para.blk_dimi << endl;
@@ -84,15 +75,16 @@ int main(int argc, char* argv[]){
   cout << "num spills: " << opti.num_spill << endl;
   cout << "perf: " << opti.perf << endl;
 
-
-  ComputeBlockLib::cbs["mul_acc"]->UpdateDepth(opti_para.k_stage);
+  ComputeBlockLib::cbs["store"] = new CB_Store("store",1,1);
+  ComputeBlockLib::cbs["load"] = new CB_Load("load",2,1);
+  ComputeBlockLib::cbs["mul_acc"] = new CB_MulAcc("mul_acc",0,1,opti_para.k_stage);
   ComputeBlockLib::num_cb["mul_acc"] = opti_para.num_cb;
  
-  cout << "cb stage " << opti_para.k_stage << endl;
 
   MemoryTrack mem(opti_para);
   mem.Slice2Dblks();
 
+  /*
   //**************************
   //inst generation
   ComputationGraph cg;
@@ -173,6 +165,9 @@ int main(int argc, char* argv[]){
   cout << "##################################################" << endl << endl << endl;
 
   sche.PrintPerf();
+  */
+
+
 
   freeConfig();
 

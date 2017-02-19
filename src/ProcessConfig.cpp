@@ -13,7 +13,10 @@ void readConfig(){
 
   ifstream config ("config_hw");
   if(config.is_open()){
+    
     string line;
+    
+    /*
     string start_cb = "Compute blocks";
 
     getline(config,line);
@@ -68,6 +71,8 @@ void readConfig(){
       getline(config,line);
       idx++;
     }
+    */
+
 
     getline(config, line);
     string start_mem = "Memory";
@@ -86,12 +91,9 @@ void readConfig(){
       int size = atoi(token.c_str());
 
       getline(ss, token, ',');
-      int compute_size = atoi(token.c_str());
-
-      getline(ss, token, ',');
       int port = atoi(token.c_str());
 
-      MemBank m = {size, compute_size, port};
+      MemBank m = {size, port};
       Memory::membanks.push_back(m);
 
       getline(config, line);

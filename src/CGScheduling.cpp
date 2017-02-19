@@ -55,7 +55,7 @@ CGScheduling::CGScheduling(ComputationGraph &in_cg, MemoryTrack &in_global_mem):
       ops.push_back(*out_op);
     }
   }
-  mem = shared_ptr<MemoryTrack>(new MemoryTrack(ops, false, opti_para));
+  mem = shared_ptr<MemoryTrack>(new MemoryTrack(ops, opti_para));
 
   begin_cycle = 0;
 }

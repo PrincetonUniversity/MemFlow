@@ -11,16 +11,10 @@ MemoryTrack::MemoryTrack(Parameters& in_opti_para):opti_para(in_opti_para){
   membanks = Memory::membanks;
 }
 
-MemoryTrack::MemoryTrack(vector<int> &ops, bool use_compute_size, Parameters& in_opti_para):opti_para(in_opti_para){
+MemoryTrack::MemoryTrack(vector<int> &ops, Parameters& in_opti_para):opti_para(in_opti_para){
   num_bank = Memory::num_bank;
   membanks = Memory::membanks;
  
-  if(use_compute_size){
-    for(int i=0; i<num_bank; i++){
-      membanks[i].size = membanks[i].compute_size;
-    }
-  }
-
   for(int i=0; i<num_bank; i++){
     vector<int> m;
     num_port.push_back(m);
@@ -43,12 +37,6 @@ MemoryTrack::MemoryTrack(vector<int> &ops, bool use_compute_size, Parameters& in
 
 void MemoryTrack::setBankSize(int bank_i, int size){
   membanks[bank_i].size = size;
-}
-
-void MemoryTrack::useComputeSize(){
-  for(int i=0; i<num_bank; i++){
-    membanks[i].size = membanks[i].compute_size;
-  }
 }
 
 int MemoryTrack::getLength(){
@@ -255,78 +243,6 @@ void MemoryTrack::getMaxNumLive(){
   cout << endl;
 }
 
-void MemoryTrack::Slice2Blocks(int blk_dimi, int blk_dimj, int blk_diml, int m, int n, int k){
-  int a_blk_size = blk_dimi*blk_diml;
-  int b_blk_size = blk_dimj*blk_diml;
-  int c_blk_size = blk_dimi*blk_dimj;
-
-  a_row_space = (a_blk_size%num_bank==0)?a_blk_size/num_bank: a_blk_size/num_bank+1;
-  b_row_space = (b_blk_size%num_bank==0)?b_blk_size/num_bank: b_blk_size/num_bank+1;
-  c_row_space = (c_blk_size%num_bank==0)?c_blk_size/num_bank: c_blk_size/num_bank+1;
-
-  a_space = a_row_space * num_bank;
-  b_space = b_row_space * num_bank;
-  c_space = c_row_space * num_bank;
-
-  int num_a = k/blk_diml;
-  int num_b = (n/blk_dimj)*(k/blk_diml);
-
-  int idx = membanks[0].compute_size;
-  //two space for c
-  c.push_back(-1);
-  c.push_back(-1);
-  //one space for a,b
-  a.push_back(-1);
-  b.push_back(-1);
-  idx += 2*c_row_space+a_row_space+b_row_space;
-
-  for(int i=1; i<num_a; i++){
-    if(idx+a_row_space < membanks[0].size){
-      a.push_back(-1);
-      idx += a_row_space;
-    }
-    else{
-      break;
-    }
-  }
-
-  for(int i=1; i<num_b; i++){
-    if(idx+b_row_space < membanks[0].size){
-      b.push_back(-1);
-      idx += b_row_space;
-    }
-    else{
-      break;
-    }
-  }
-
-  c_base = membanks[0].compute_size;
-  a_base = c_base + c.size()*c_row_space;
-  b_base = a_base + a.size()*a_row_space;
-
-  cout << "a mem blk size " << a.size() << endl;
-  cout << "b mem blk size " << b.size() << endl;
-  cout << "c mem blk size " << c.size() << endl;
-
-}
-
-
-int MemoryTrack::getBase_a(int idx){
-  return a_base+idx*a_row_space;
-}
-
-int MemoryTrack::getBase_b(int idx){
-  return b_base+idx*b_row_space;
-}
-
-int MemoryTrack::getBase_c(int idx){
-  return c_base+idx*c_row_space;
-}
-
-
-
-
-
 void MemoryTrack::Slice2Dblks(){
   int ablk = opti_para.blk_dimi*opti_para.blk_diml;
   int bblk = opti_para.blk_dimj*opti_para.blk_diml;
@@ -335,7 +251,6 @@ void MemoryTrack::Slice2Dblks(){
   a_region = (ablk%opti_para.num_bank_a==0)?ablk/opti_para.num_bank_a: ablk/opti_para.num_bank_a+1;
   b_region = (bblk%opti_para.num_bank_b==0)?bblk/opti_para.num_bank_b: bblk/opti_para.num_bank_b+1;
   c_region = (cblk%opti_para.num_bank_c==0)?cblk/opti_para.num_bank_c: cblk/opti_para.num_bank_c+1;
-
 
   cout << "a blk " << ablk << endl;
   cout << "b blk " << bblk << endl;
@@ -361,13 +276,13 @@ void MemoryTrack::Slice2Dblks(){
 }
 
 
-array<int,2> MemoryTrack::getAddr_a_ele(int dblk_idx, int m, int n, int i, int j){
+array<int,2> MemoryTrack::getAddr_a_ele(int base, int m, int n, int i, int j){
   array<int,2> addr;
   
   int blk_i = i/opti_para.subblk_dimi;
   int blk_idx = (blk_i*n+j)/opti_para.subblk_diml;
   //addr in bank
-  int addr_offset = dblk_idx+2*blk_idx;
+  int addr_offset = base+2*blk_idx;
 
   int i_insubblk = i%opti_para.subblk_dimi;
   int j_insubblk = (blk_i*n+j)%opti_para.subblk_diml;
@@ -379,14 +294,14 @@ array<int,2> MemoryTrack::getAddr_a_ele(int dblk_idx, int m, int n, int i, int j
   return addr;
 }
 
-array<int,2> MemoryTrack::getAddr_b_ele(int dblk_idx, int m, int n, int i, int j){
+array<int,2> MemoryTrack::getAddr_b_ele(int base, int m, int n, int i, int j){
   array<int,2> addr;
 
   int blk_n = n/opti_para.subblk_dimj;
   int blk_i = i/opti_para.subblk_diml;
   int blk_j = j/opti_para.subblk_dimj;
   int blk_idx = blk_i*blk_n+blk_j;
-  int addr_offset = dblk_idx+2*blk_idx;
+  int addr_offset = base+2*blk_idx;
 
   int i_insubblk = i%opti_para.subblk_diml;
   int j_insubblk = j%opti_para.subblk_dimj;
@@ -396,7 +311,7 @@ array<int,2> MemoryTrack::getAddr_b_ele(int dblk_idx, int m, int n, int i, int j
   return addr;
 }
 
-array<int,2> MemoryTrack::getAddr_c_ele(int dblk_idx, int m, int n, int i, int j, int in_out_latency){
+array<int,2> MemoryTrack::getAddr_c_ele(int base, int m, int n, int i, int j, int in_out_latency){
   array<int,2> addr;
 
   int blk_n = n/opti_para.subblk_dimj;
@@ -429,8 +344,20 @@ array<int,2> MemoryTrack::getAddr_c_ele(int dblk_idx, int m, int n, int i, int j
   //  addr[0] = (opti_para.num_bank_a+opti_para.num_bank_b+opti_para.num_bank_c/2)+idx_insubblk/2;
   //}
   addr[0] = (opti_para.num_bank_a+opti_para.num_bank_b)+idx_insubblk;
-  addr[1] = dblk_idx+blk_idx;
+  addr[1] = base+blk_idx;
   return addr;
+}
+
+int MemoryTrack::getBase_a(int blk_idx){
+  return blk_idx*a_region;
+}
+
+int MemoryTrack::getBase_b(int blk_idx){
+  return blk_idx*b_region;
+}
+
+int MemoryTrack::getBase_c(int blk_idx){
+  return blk_idx*c_region;
 }
 
 

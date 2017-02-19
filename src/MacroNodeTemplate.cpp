@@ -65,7 +65,7 @@ void MacroNodeTemplate::MN_load(int width, bool sche){
       ops.push_back(*out_op);
     }
   }
-  mem = shared_ptr<MemoryTrack>(new MemoryTrack(ops, true, opti_para));
+  mem = shared_ptr<MemoryTrack>(new MemoryTrack(ops, opti_para));
 
   if(sche){
     cout << "start mn template scheduling" << endl;
@@ -117,7 +117,7 @@ void MacroNodeTemplate::MN_mtxmul(int in_m, int in_n, int in_k, bool sche){
       ops.push_back(*out_op);
     }
   }
-  mem = shared_ptr<MemoryTrack>(new MemoryTrack(ops, true, opti_para));
+  mem = shared_ptr<MemoryTrack>(new MemoryTrack(ops, opti_para));
  
   cout << "input data bank allocation " << endl;
   //determine io op bank
@@ -269,7 +269,7 @@ void MacroNodeTemplate::MN_store(int width, bool sche){
       ops.push_back(*out_op);
     }
   }
-  mem = shared_ptr<MemoryTrack>(new MemoryTrack(ops, true, opti_para));
+  mem = shared_ptr<MemoryTrack>(new MemoryTrack(ops, opti_para));
 
   if(sche){
     TileScheduling mn_sche(*this, MN);
@@ -317,7 +317,7 @@ void MacroNodeTemplate::MN_2load_mtxmul(int m, int n, int k, bool sche){
       ops.push_back(*out_op);
     }
   }
-  mem = shared_ptr<MemoryTrack>(new MemoryTrack(ops, true, opti_para));
+  mem = shared_ptr<MemoryTrack>(new MemoryTrack(ops, opti_para));
   
   if(sche){
     TileScheduling mn_sche(*this, MN);
@@ -365,7 +365,7 @@ void MacroNodeTemplate::MN_load1_mtxmul(int m, int n, int k, bool sche){
       ops.push_back(*out_op);
     }
   }
-  mem = shared_ptr<MemoryTrack>(new MemoryTrack(ops, true, opti_para));
+  mem = shared_ptr<MemoryTrack>(new MemoryTrack(ops, opti_para));
   
   if(sche){
     TileScheduling mn_sche(*this, MN);
@@ -412,7 +412,7 @@ void MacroNodeTemplate::MN_load2_mtxmul(int m, int n, int k, bool sche){
       ops.push_back(*out_op);
     }
   }
-  mem = shared_ptr<MemoryTrack>(new MemoryTrack(ops, true, opti_para));
+  mem = shared_ptr<MemoryTrack>(new MemoryTrack(ops, opti_para));
   
   if(sche){
     TileScheduling mn_sche(*this, MN);

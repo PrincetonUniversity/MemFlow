@@ -115,9 +115,6 @@ class CB_GivensS: public ComputeBlock{
 
 struct MemBank{
   int size;
-  int compute_size;
-  //int num_readport;
-  //int num_writeport;
   int num_port;
 };
 
