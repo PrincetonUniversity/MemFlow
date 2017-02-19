@@ -72,6 +72,11 @@ CB_MulAcc::CB_MulAcc(string in_name, int in_idx, int in_width, int in_depth)
   latency = 2+(FunctionUnitLib::MUL.latency+FunctionUnitLib::ADD.latency)+(in_depth-1)*FunctionUnitLib::ADD.latency;
 }
 
+void CB_MulAcc::UpdateDepth(int in_depth){
+  max_depth = in_depth;
+  latency = 2+(FunctionUnitLib::MUL.latency+FunctionUnitLib::ADD.latency)+(in_depth-1)*FunctionUnitLib::ADD.latency;
+}
+
 int CB_MulAcc::GetRealLatency(int in_realdepth){
   return 2+(FunctionUnitLib::MUL.latency+FunctionUnitLib::ADD.latency)+(in_realdepth-1)*FunctionUnitLib::ADD.latency;
 }

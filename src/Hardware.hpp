@@ -16,6 +16,7 @@ class ComputeBlock{
     virtual ~ComputeBlock(){};
     virtual int GetRealLatency(int in_realdepth){return 0;};	
     virtual int LiveinReadCycle(int livein_idx){return 0;};
+    virtual void UpdateDepth(int in_depth){};
 
     string name;
     int idx; //can delete later
@@ -55,6 +56,7 @@ class CB_DivRoot: public ComputeBlock{
 class CB_MulAcc: public ComputeBlock{
   public:
     CB_MulAcc(string in_name, int in_idx, int in_width, int in_depth);
+    void UpdateDepth(int in_depth);
     int GetRealLatency(int in_realdepth);
     int LiveinReadCycle(int livein_idx);
 };

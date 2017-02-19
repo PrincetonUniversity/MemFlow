@@ -11,10 +11,10 @@
 
 using namespace std;
 
-struct rw_info{
-  int cycle;
-  array<int,2> addr;
-};
+//struct rw_info{
+//  int cycle;
+//  array<int,2> addr;
+//};
 
 struct tile_sche{
   int start;
@@ -51,7 +51,7 @@ class MacroNodeTemplate{
     MacroNodeTemplate(vector<Operation> &in_ops, vector<Tile> &in_tiles, string in_name);
     ~MacroNodeTemplate(){};
 
-    void MN_mtxmul(int m, int n, int k, bool sche);
+    void MN_mtxmul(int in_m, int in_n, int in_k, bool sche);
     void MN_load(int tile_width, bool sche);
     void MN_store(int tile_width, bool sche);
     void MN_2load_mtxmul(int m, int n, int k, bool sche);
@@ -80,6 +80,14 @@ class MacroNodeTemplate{
 
     //io ops
     //just need to update mem port usage in mem
+    int m;
+    int n;
+    int k;
+
+    int tile_m;
+    int tile_n;
+    int tile_k;
+
     vector<vector<int>> Ain;   
     vector<vector<int>> Bin;   
     vector<vector<int>> Cin;   

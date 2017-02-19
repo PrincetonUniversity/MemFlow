@@ -5,13 +5,14 @@
 #include <map>
 
 #include "Hardware.hpp"
+#include "OptiMacroNode.hpp"
 
 using namespace std;
 
 class MemoryTrack{
   public:
-    MemoryTrack();
-    MemoryTrack(vector<int> &ops, bool use_compute_size);
+    MemoryTrack(Parameters &in_opti_para);
+    MemoryTrack(vector<int> &ops, bool use_compute_size, Parameters &in_opti_para);
     ~MemoryTrack(){};
 
     void setBankSize(int bank_i, int size);
@@ -74,6 +75,31 @@ class MemoryTrack{
     int a_row_space;
     int b_row_space;
     int c_row_space;
+
+    map<int,vector<array<int,2>>> op_in_bank;
+    vector<vector<int>> num_port;
+    vector<vector<vector<int>>> num_live;
+
+    vector<int> max_num_live;
+
+
+
+
+
+    void Slice2Dblks();
+    array<int,2> getAddr_a_ele(int dblk_idx, int m, int n, int i, int j);
+    array<int,2> getAddr_b_ele(int dblk_idx, int m, int n, int i, int j);
+    array<int,2> getAddr_c_ele(int dblk_idx, int m, int n, int i, int j, int in_out_latency);
+
+    Parameters& opti_para;
+    int num_bank_a;
+    int num_bank_b;
+    int num_bank_c;
+
+    int a_region;
+    int b_region;
+    int c_region;
+    
     //slice mem into a,b,c regions
     //vector length: number of blks in this region
     //vector value: dblk being stored
@@ -81,11 +107,6 @@ class MemoryTrack{
     vector<int> b;
     vector<int> c;
 
-    map<int,vector<array<int,2>>> op_in_bank;
-    vector<vector<int>> num_port;
-    vector<vector<vector<int>>> num_live;
-
-    vector<int> max_num_live;
 };
 
 #endif

@@ -6,12 +6,12 @@
 
 using namespace std;
 
-MemoryTrack::MemoryTrack(){
+MemoryTrack::MemoryTrack(Parameters& in_opti_para):opti_para(in_opti_para){
   num_bank = Memory::num_bank;
   membanks = Memory::membanks;
 }
 
-MemoryTrack::MemoryTrack(vector<int> &ops, bool use_compute_size){
+MemoryTrack::MemoryTrack(vector<int> &ops, bool use_compute_size, Parameters& in_opti_para):opti_para(in_opti_para){
   num_bank = Memory::num_bank;
   membanks = Memory::membanks;
  
@@ -310,6 +310,7 @@ void MemoryTrack::Slice2Blocks(int blk_dimi, int blk_dimj, int blk_diml, int m, 
 
 }
 
+
 int MemoryTrack::getBase_a(int idx){
   return a_base+idx*a_row_space;
 }
@@ -321,5 +322,116 @@ int MemoryTrack::getBase_b(int idx){
 int MemoryTrack::getBase_c(int idx){
   return c_base+idx*c_row_space;
 }
+
+
+
+
+
+void MemoryTrack::Slice2Dblks(){
+  int ablk = opti_para.blk_dimi*opti_para.blk_diml;
+  int bblk = opti_para.blk_dimj*opti_para.blk_diml;
+  int cblk = opti_para.blk_dimi*opti_para.blk_dimj;
+
+  a_region = (ablk%opti_para.num_bank_a==0)?ablk/opti_para.num_bank_a: ablk/opti_para.num_bank_a+1;
+  b_region = (bblk%opti_para.num_bank_b==0)?bblk/opti_para.num_bank_b: bblk/opti_para.num_bank_b+1;
+  c_region = (cblk%opti_para.num_bank_c==0)?cblk/opti_para.num_bank_c: cblk/opti_para.num_bank_c+1;
+
+
+  cout << "a blk " << ablk << endl;
+  cout << "b blk " << bblk << endl;
+  cout << "c blk " << cblk << endl;
+  cout << "num bank a " << opti_para.num_bank_a << endl;
+  cout << "num bank b " << opti_para.num_bank_b << endl;
+  cout << "num bank c " << opti_para.num_bank_c << endl;
+  cout << "a region " << a_region << endl;
+  cout << "b region " << b_region << endl;
+  cout << "c region " << c_region << endl;
+
+  int num_ablk = Memory::membanks[0].size/a_region;
+  int num_bblk = Memory::membanks[0].size/b_region;
+  int num_cblk = Memory::membanks[0].size/c_region;
+
+  a = vector<int>(num_ablk, -1);
+  b = vector<int>(num_bblk, -1);
+  c = vector<int>(num_cblk, -1);
+
+  cout << "a mem dblk num: " << num_ablk << endl;
+  cout << "b mem dblk num: " << num_bblk << endl;
+  cout << "c mem dblk num: " << num_cblk << endl;
+}
+
+
+array<int,2> MemoryTrack::getAddr_a_ele(int dblk_idx, int m, int n, int i, int j){
+  array<int,2> addr;
+  
+  int blk_i = i/opti_para.subblk_dimi;
+  int blk_idx = (blk_i*n+j)/opti_para.subblk_diml;
+  //addr in bank
+  int addr_offset = dblk_idx+2*blk_idx;
+
+  int i_insubblk = i%opti_para.subblk_dimi;
+  int j_insubblk = (blk_i*n+j)%opti_para.subblk_diml;
+  int idx_insubblk = j_insubblk*opti_para.subblk_dimi + i_insubblk;
+  //bank
+  addr[0] = idx_insubblk/2;
+  addr[1] = addr_offset+idx_insubblk%2;
+
+  return addr;
+}
+
+array<int,2> MemoryTrack::getAddr_b_ele(int dblk_idx, int m, int n, int i, int j){
+  array<int,2> addr;
+
+  int blk_n = n/opti_para.subblk_dimj;
+  int blk_i = i/opti_para.subblk_diml;
+  int blk_j = j/opti_para.subblk_dimj;
+  int blk_idx = blk_i*blk_n+blk_j;
+  int addr_offset = dblk_idx+2*blk_idx;
+
+  int i_insubblk = i%opti_para.subblk_diml;
+  int j_insubblk = j%opti_para.subblk_dimj;
+  int idx_insubblk = i_insubblk*opti_para.subblk_dimj+j_insubblk;
+  addr[0] = opti_para.num_bank_a+idx_insubblk/2;
+  addr[1] = addr_offset+idx_insubblk%2;
+  return addr;
+}
+
+array<int,2> MemoryTrack::getAddr_c_ele(int dblk_idx, int m, int n, int i, int j, int in_out_latency){
+  array<int,2> addr;
+
+  int blk_n = n/opti_para.subblk_dimj;
+  int blk_i = i/opti_para.subblk_dimi;
+  int blk_j = j/opti_para.subblk_dimj;
+  int blk_idx = blk_i*blk_n+blk_j;
+  
+  //int blk_batch_idx = blk_idx/in_out_latency;
+  //int blk_idx_inbatch = blk_idx%in_out_latency;
+
+  //cout << "blk batch idx " << blk_batch_idx << endl;
+  //cout << "blk idx in batch " << blk_idx_inbatch << endl;
+
+  //int blk_type = blk_batch_idx%2;
+  //int blk_round = blk_batch_idx/2;
+
+  //cout << "blk type " << blk_type << endl;
+  //cout << "blk round " << blk_round << endl;
+
+  //int addr_offset = dblk_idx+2*(blk_round*in_out_latency+blk_idx_inbatch);
+  
+  int i_insubblk = i%opti_para.subblk_dimi;
+  int j_insubblk = j%opti_para.subblk_dimj;
+  int idx_insubblk = i_insubblk*opti_para.subblk_dimj+j_insubblk;
+
+  //if(blk_type == 0){
+  //  addr[0] = (opti_para.num_bank_a+opti_para.num_bank_b)+idx_insubblk/2;
+  //}
+  //else{
+  //  addr[0] = (opti_para.num_bank_a+opti_para.num_bank_b+opti_para.num_bank_c/2)+idx_insubblk/2;
+  //}
+  addr[0] = (opti_para.num_bank_a+opti_para.num_bank_b)+idx_insubblk;
+  addr[1] = dblk_idx+blk_idx;
+  return addr;
+}
+
 
 

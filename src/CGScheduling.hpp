@@ -7,6 +7,7 @@
 #include "./ComputationGraph.hpp"
 #include "./Scheduling.hpp"
 #include "Memory.hpp"
+#include "Setting.hpp"
 
 using namespace std;
 

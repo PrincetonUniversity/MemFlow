@@ -9,6 +9,11 @@
 
 using namespace std;
 
+struct rw_info{
+  int cycle;
+  array<int,2> addr;
+};
+
 class Tile{
 public:
 	Tile(ComputeBlock* in_cb){cb=in_cb; mn=-1;};
@@ -30,6 +35,9 @@ public:
 	vector<int> pred_tiles;
 	vector<int> liveout_ops;
 	map<int, vector<int>> post_tiles;
+
+	//map<int,rw_info> inop;
+	//map<int,rw_info> outop;
 
 	int tile_sche_idx;
 };

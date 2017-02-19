@@ -27,6 +27,32 @@ struct lr_size;
 
 class TileScheduling;
 
+class StageEvents{
+  public: 
+    StageEvents(){produced_out = false;};
+    ~StageEvents(){};
+
+    void Enqueue(set<int> &ops);
+    void Dequeue();
+
+    set<int> ops;
+    bool produced_out;
+    bool stall;
+    queue<set<int>> q_ops;
+};
+
+class CBEvents{
+  public:
+    CBEvents(int in_num_stage);
+    CBEvents(){};
+    ~CBEvents(){};
+    
+    void setStages(int in_num_stage);
+
+    int num_stage;
+    vector<StageEvents> stage_events;
+};
+
 class Liverange{
   public:
     Liverange(TileScheduling* in_sche){sche = in_sche;};
@@ -104,7 +130,12 @@ class TileScheduling{
   int FindCycle_dblks(int tile, int tile_sche_idx, map<int,int>&inop_read_cycle);
   void FindCB_dblks(int tile);
   void AllocateTile_dblks(int tile, int cycle, int cb_idx, map<int,int> &read_cycle);
-  void Scheduling_dblks();
+
+  void Scheduling_subblk(int subblk_i, int subblk_j, int subblk_l);
+  void getBlkDimij();
+
+  int Executing_cbs();
+  void Scheduling_pipe();
 
   void PrintNumPort(int mem_bank);
   void PrintNumLive(int mem_bank);
@@ -136,6 +167,17 @@ class TileScheduling{
   vector<int> cb_tile_sche;
   //last tile_sche that use this cb
   map<int, set<int>> op_read_cycles;
+
+  int num_cbs;
+  int subblk_dimi_tile;
+  int subblk_dimj_tile;
+  int subblk_diml_tile;
+
+  int subblk_m;
+  int subblk_n;
+  int subblk_k;
+
+  vector<CBEvents> cb_events;
 
 
   //int num_type; 

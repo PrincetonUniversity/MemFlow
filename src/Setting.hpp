@@ -18,4 +18,5 @@ namespace Memory{
 
 extern vector<MacroNodeTemplate*> mn_temps;
 
+extern Parameters opti_para;
 #endif

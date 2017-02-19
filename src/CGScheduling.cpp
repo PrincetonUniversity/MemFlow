@@ -55,7 +55,7 @@ CGScheduling::CGScheduling(ComputationGraph &in_cg, MemoryTrack &in_global_mem):
       ops.push_back(*out_op);
     }
   }
-  mem = shared_ptr<MemoryTrack>(new MemoryTrack(ops, false));
+  mem = shared_ptr<MemoryTrack>(new MemoryTrack(ops, false, opti_para));
 
   begin_cycle = 0;
 }
@@ -198,6 +198,7 @@ void CGScheduling::MacroNodeGen(int blk_dimi, int blk_dimj, int blk_diml){
 }
 
 void CGScheduling::PrintDep(){
+  cout << endl << "Dependency of dblks and mns " << endl;
   for(auto dblk=dblks.begin(); dblk!=dblks.end(); dblk++){
     cout << endl << "dblk " << (*dblk)->idx << endl;
     cout << "pred_mns: ";

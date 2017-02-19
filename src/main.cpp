@@ -27,8 +27,10 @@ namespace Memory{
   vector<MemBank> membanks;
 }
 
-int main(int argc, char* argv[]){
+Parameters opti_para;
 
+int main(int argc, char* argv[]){
+  //testing show up in master?
 
   //input data size
   int m;
@@ -56,31 +58,48 @@ int main(int argc, char* argv[]){
     total_mem_size += (Memory::membanks[i].size-Memory::membanks[i].compute_size);
   }
 
-  int tile_dimi = 1;
-  int tile_dimj = 1;
-  int tile_diml = ComputeBlockLib::cbs["mul_acc"]->max_depth;
-  OptiMacroNode opti(total_mem_size, m, n, k, tile_dimi, tile_dimj, tile_diml);
-  opti.genMNSize_tile();
-  cout << "blk dimi: " << opti.blk_dimi_opti << endl;
-  cout << "blk dimj: " << opti.blk_dimj_opti << endl;
-  cout << "blk diml: " << opti.blk_diml_opti << endl;
-  cout << "extended m: " << opti.m_ex << endl;
-  cout << "extended n: " << opti.n_ex << endl;
-  cout << "extended k: " << opti.k_ex << endl;
+  //int tile_dimi = 1;
+  //int tile_dimj = 1;
+  //int tile_diml = ComputeBlockLib::cbs["mul_acc"]->max_depth;
 
-  cout << "sum of block size: " << opti.mi << endl;
-  cout << "num of spills: " << opti.num_spill << endl;
+  //Parameters opti_para;
+  OptiMacroNode opti(m, n, k, opti_para);
+  opti.optiPara();
 
-  //opti.SweepMemSize();
-  MemoryTrack mem;
-  mem.Slice2Blocks(opti.blk_dimi_opti, opti.blk_dimj_opti, opti.blk_diml_opti, opti.m_ex, opti.n_ex, opti.k_ex);
+  //opti.genMNSize_tile();
+
+  cout << endl << "Optimized blocking " << endl;
+  cout << "blk dimi: " << opti_para.blk_dimi << endl;
+  cout << "blk dimj: " << opti_para.blk_dimj << endl;
+  cout << "blk diml: " << opti_para.blk_diml << endl;
+  cout << "subblk dimi: " << opti_para.subblk_dimi << endl;
+  cout << "subblk dimj: " << opti_para.subblk_dimj << endl;
+  cout << "subblk diml: " << opti_para.subblk_diml << endl;
+  cout << "extended m: " << opti_para.m_ex << endl;
+  cout << "extended n: " << opti_para.n_ex << endl;
+  cout << "extended k: " << opti_para.k_ex << endl;
+
+  cout << "#cb stages: " << opti_para.k_stage << endl;
+  cout << "#cb: " << opti_para.num_cb << endl;
+
+  cout << "num spills: " << opti.num_spill << endl;
+  cout << "perf: " << opti.perf << endl;
+
+
+  ComputeBlockLib::cbs["mul_acc"]->UpdateDepth(opti_para.k_stage);
+  ComputeBlockLib::num_cb["mul_acc"] = opti_para.num_cb;
+ 
+  cout << "cb stage " << opti_para.k_stage << endl;
+
+  MemoryTrack mem(opti_para);
+  mem.Slice2Dblks();
 
   //**************************
   //inst generation
   ComputationGraph cg;
-  cg.m = m;
-  cg.n = n;
-  cg.k = k; 
+  cg.m = opti_para.m_ex;
+  cg.n = opti_para.n_ex;
+  cg.k = opti_para.k_ex; 
 
   vector<vector<int>> in_mtx1;   
   vector<vector<int>> in_mtx2;   
@@ -90,8 +109,8 @@ int main(int argc, char* argv[]){
   cout << "Generate computation graph: " << endl;
   clock_t begin = clock();
   //load input
-  cg.CP_Load(opti.m_ex, opti.k_ex, in_mtx1);
-  cg.CP_Load(opti.k_ex, opti.n_ex, in_mtx2);
+  cg.CP_Load(opti_para.m_ex, opti_para.k_ex, in_mtx1);
+  cg.CP_Load(opti_para.k_ex, opti_para.n_ex, in_mtx2);
 
   ///computation
   cg.CP_MtxMul(in_mtx1, in_mtx2, out_mtx);
@@ -119,6 +138,7 @@ int main(int argc, char* argv[]){
   //cout << "Time elapsed: " << elapsed_time << endl;
   cout << "##################################################" << endl << endl << endl;
 
+
   //cout << "real tiles: " << endl;
   //cout << "----------------------------------------------" << endl;
   //cg.PrintTiles();
@@ -133,7 +153,7 @@ int main(int argc, char* argv[]){
   cout << "Generate macronodes: " << endl;
   begin = clock();
 
-  sche.MacroNodeGen(opti.blk_dimi_opti, opti.blk_dimj_opti, opti.blk_diml_opti);
+  sche.MacroNodeGen(opti_para.blk_dimi, opti_para.blk_dimj, opti_para.blk_diml);
 
   sche.PrintMacroNodes();
 
@@ -146,14 +166,14 @@ int main(int argc, char* argv[]){
   cout << "Schedule macronodes: " << endl;
   begin = clock();
 
-  //sche.Scheduling();
+  sche.Scheduling();
 
   end = clock();
   elapsed_time = double(end-begin)/CLOCKS_PER_SEC;
   cout << "Time elapsed: " << elapsed_time << endl;
   cout << "##################################################" << endl << endl << endl;
 
-  //sche.PrintPerf(); 
+  sche.PrintPerf();
 
   freeConfig();
 

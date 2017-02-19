@@ -65,7 +65,7 @@ void MacroNodeTemplate::MN_load(int width, bool sche){
       ops.push_back(*out_op);
     }
   }
-  mem = shared_ptr<MemoryTrack>(new MemoryTrack(ops, true));
+  mem = shared_ptr<MemoryTrack>(new MemoryTrack(ops, true, opti_para));
 
   if(sche){
     cout << "start mn template scheduling" << endl;
@@ -78,7 +78,16 @@ void MacroNodeTemplate::MN_load(int width, bool sche){
   cout << "finish mn template load" << endl;
 }
 
-void MacroNodeTemplate::MN_mtxmul(int m, int n, int k, bool sche){
+void MacroNodeTemplate::MN_mtxmul(int in_m, int in_n, int in_k, bool sche){
+  cout << endl <<  "Macro Node Template for mtxmul " << endl;
+  m = in_m;
+  n = in_n;
+  k = in_k;
+
+  tile_m = in_m;
+  tile_n = in_n;
+  tile_k = in_k/ComputeBlockLib::cbs["mul_acc"]->max_depth;
+
   ComputationGraph cg;
   cg.CP_Load(m, k, Ain);
   cg.CP_Load(k, n, Bin);
@@ -108,41 +117,62 @@ void MacroNodeTemplate::MN_mtxmul(int m, int n, int k, bool sche){
       ops.push_back(*out_op);
     }
   }
-  mem = shared_ptr<MemoryTrack>(new MemoryTrack(ops, true));
+  mem = shared_ptr<MemoryTrack>(new MemoryTrack(ops, true, opti_para));
  
+  cout << "input data bank allocation " << endl;
   //determine io op bank
+  cout << endl << "A" << endl;
   for(int i=0; i<Ain.size(); i++){
     for(int j=0; j<Ain[i].size(); j++){
-      int idx = i*Ain[0].size()+j;
-      ioop_addr[Ain[i][j]][0] = idx%mem->num_bank;
-      ioop_addr[Ain[i][j]][1] = A_base+idx/mem->num_bank;
+      array<int,2> a_addr = mem->getAddr_a_ele(A_base, Ain.size(), Ain[0].size(), i, j);
+      cout << "A " << i << " " << j << ": " << a_addr[0] << " " << a_addr[1] << endl;
+      ioop_addr[Ain[i][j]] = a_addr;
+
+      //int idx = i*Ain[0].size()+j;
+      //ioop_addr[Ain[i][j]][0] = idx%mem->num_bank;
+      //ioop_addr[Ain[i][j]][1] = A_base+idx/mem->num_bank;
+      //cout << Ain[i][j] << ":" << ioop_addr[Ain[i][j]][0] << endl;
     }
   }
+  cout << endl << "B" << endl;
   for(int i=0; i<Bin.size(); i++){
     for(int j=0; j<Bin[i].size(); j++){
-      int idx = i*Bin[0].size()+j;
-      ioop_addr[Bin[i][j]][0] = idx%mem->num_bank;
-      ioop_addr[Bin[i][j]][1] = B_base+idx/mem->num_bank;
+      array<int,2> b_addr = mem->getAddr_b_ele(B_base, Bin.size(), Bin[0].size(), i, j);
+      cout << "B " << i << " " << j << ": " << b_addr[0] << " " << b_addr[1] << endl;
+      ioop_addr[Bin[i][j]] = b_addr;
+
+      //int idx = i*Bin[0].size()+j;
+      //ioop_addr[Bin[i][j]][0] = idx%mem->num_bank;
+      //ioop_addr[Bin[i][j]][1] = B_base+idx/mem->num_bank;
+      //cout << Bin[i][j] << ":" << ioop_addr[Bin[i][j]][0] << endl;
     }
   }
+  cout << endl << "C" << endl;
   for(int i=0; i<Cin.size(); i++){
     for(int j=0; j<Cin[i].size(); j++){
-      int idx = i*Cin[0].size()+j;
-      ioop_addr[Cin[i][j]][0] = idx%mem->num_bank;
-      ioop_addr[Cin[i][j]][1] = Cin_base+idx/mem->num_bank;
+      array<int,2> c_addr = mem->getAddr_c_ele(Cin_base, Cin.size(), Cin[0].size(), i, j, 5);
+      cout << "C " << i << " " << j << ": " << c_addr[0] << " " << c_addr[1] << endl;
+      ioop_addr[Cin[i][j]] = c_addr;
+      
+      //int idx = i*Cin[0].size()+j;
+      //ioop_addr[Cin[i][j]][0] = idx%mem->num_bank;
+      //ioop_addr[Cin[i][j]][1] = Cin_base+idx/mem->num_bank;
+      //cout << Cin[i][j] << ":" << ioop_addr[Cin[i][j]][0] << endl;
     }
   }
   for(int i=0; i<Cout.size(); i++){
     for(int j=0; j<Cout[i].size(); j++){
-      int idx = i*Cout[0].size()+j;
-      ioop_addr[Cout[i][j]][0] = idx%mem->num_bank;
-      ioop_addr[Cout[i][j]][1] = Cout_base+idx/mem->num_bank;
+      ioop_addr[Cout[i][j]] = ioop_addr[Cin[i][j]];
+      
+      //int idx = i*Cout[0].size()+j;
+      //ioop_addr[Cout[i][j]][0] = idx%mem->num_bank;
+      //ioop_addr[Cout[i][j]][1] = Cout_base+idx/mem->num_bank;
     }
   }
 
   if(sche){
     TileScheduling mn_sche(*this, MN);
-    mn_sche.Scheduling_dblks();
+    mn_sche.Scheduling_pipe();
     //mn_sche.PrintPerf();
     //cycle_length = mn_sche.last_cycle+1;
     //mem->getMaxNumLive();
@@ -239,7 +269,7 @@ void MacroNodeTemplate::MN_store(int width, bool sche){
       ops.push_back(*out_op);
     }
   }
-  mem = shared_ptr<MemoryTrack>(new MemoryTrack(ops, true));
+  mem = shared_ptr<MemoryTrack>(new MemoryTrack(ops, true, opti_para));
 
   if(sche){
     TileScheduling mn_sche(*this, MN);
@@ -287,7 +317,7 @@ void MacroNodeTemplate::MN_2load_mtxmul(int m, int n, int k, bool sche){
       ops.push_back(*out_op);
     }
   }
-  mem = shared_ptr<MemoryTrack>(new MemoryTrack(ops, true));
+  mem = shared_ptr<MemoryTrack>(new MemoryTrack(ops, true, opti_para));
   
   if(sche){
     TileScheduling mn_sche(*this, MN);
@@ -335,7 +365,7 @@ void MacroNodeTemplate::MN_load1_mtxmul(int m, int n, int k, bool sche){
       ops.push_back(*out_op);
     }
   }
-  mem = shared_ptr<MemoryTrack>(new MemoryTrack(ops, true));
+  mem = shared_ptr<MemoryTrack>(new MemoryTrack(ops, true, opti_para));
   
   if(sche){
     TileScheduling mn_sche(*this, MN);
@@ -382,7 +412,7 @@ void MacroNodeTemplate::MN_load2_mtxmul(int m, int n, int k, bool sche){
       ops.push_back(*out_op);
     }
   }
-  mem = shared_ptr<MemoryTrack>(new MemoryTrack(ops, true));
+  mem = shared_ptr<MemoryTrack>(new MemoryTrack(ops, true, opti_para));
   
   if(sche){
     TileScheduling mn_sche(*this, MN);

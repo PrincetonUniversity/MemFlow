@@ -421,8 +421,16 @@ void Load_mtx::TileGen(vector<Tile> &tiles, vector<Operation> &ops){
 
 
 void Load_mtx::MacroNodeGen(int mn_dimi, int mn_dimj, int mn_diml){
+
   mn_m = (m%mn_dimi == 0)?m/mn_dimi: m/mn_dimi+1;
   mn_n = (n%mn_dimj == 0)?n/mn_dimj: n/mn_dimj+1;
+
+  cout << "m " << m << endl;
+  cout << "n " << n << endl;
+  cout << "mn_dimi " << mn_dimi << endl;
+  cout << "mn_dimj " << mn_dimj << endl;
+  cout << "mn_m " << mn_m << endl;
+  cout << "mn_n " << mn_n << endl;
 
   for(int mn_i=0; mn_i<mn_m; mn_i++){
     for(int mn_j=0; mn_j<mn_n; mn_j++){
