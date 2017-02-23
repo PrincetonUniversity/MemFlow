@@ -35,7 +35,7 @@ class Pattern{
   void PrintOps(vector<Operation> &ops);
   virtual void TileGen(vector<Tile> &tiles, vector<Operation> &ops);
   //virtual void MacroNodeGen(vector<MacroNode*> &mns, int mn_dimi, int mn_dimj){};
-  virtual void MacroNodeGen(int mn_dimi, int mn_dimj, int mn_diml){};
+  //virtual void MacroNodeGen(int mn_dimi, int mn_dimj, int mn_diml){};
 
   void SetMNRowMajor(){row_major_mn = true;};
 
@@ -81,9 +81,9 @@ class Load_mtx: public Pattern{
     ~Load_mtx();
     void TileGen(vector<Tile> &tiles, vector<Operation> &ops);
     //void MacroNodeGen(vector<MacroNode*> &mns, int mn_dimi, int mn_dimj);
-    void MacroNodeGen_idxorder(vector<MacroNode*> &mns);
-    void MacroNodeGen_tile(int mn_dimi, int mn_dimj, int mn_diml);
-    void MacroNodeGen(int mn_dimi, int mn_dimj, int mn_diml);
+    //void MacroNodeGen_idxorder(vector<MacroNode*> &mns);
+    //void MacroNodeGen_tile(int mn_dimi, int mn_dimj, int mn_diml);
+    //void MacroNodeGen(int mn_dimi, int mn_dimj, int mn_diml);
 
 };
 
@@ -98,9 +98,9 @@ class Store_mtx: public Pattern{
     ~Store_mtx();
     void TileGen(vector<Tile> &tiles, vector<Operation> &ops);
     //void MacroNodeGen(vector<MacroNode*> &mns, int mn_dimi, int mn_dimj);
-    void MacroNodeGen(int mn_dimi, int mn_dimj, int mn_diml);
-    void MacroNodeGen_tile(int mn_dimi, int mn_dimj, int mn_diml);
-    void MacroNodeGen_idxorder(vector<MacroNode*> &mns);
+    //void MacroNodeGen(int mn_dimi, int mn_dimj, int mn_diml);
+    //void MacroNodeGen_tile(int mn_dimi, int mn_dimj, int mn_diml);
+    //void MacroNodeGen_idxorder(vector<MacroNode*> &mns);
    
 };
 
@@ -144,10 +144,10 @@ class MtxMul: public Pattern{
     MtxMul(vector<Operation> &ops, string &in_cp, const vector<vector<int>> &in_mtx1, const vector<vector<int>> &in_mtx2, vector<vector<int>> &out_mtx);
     ~MtxMul();
     void TileGen(vector<Tile> &tiles, vector<Operation> &ops);
-    void MacroNodeGen_idxorder(vector<MacroNode*> &mns);
+    //void MacroNodeGen_idxorder(vector<MacroNode*> &mns);
     //void MacroNodeGen(vector<MacroNode*> &mns, int mn_dimi, int mn_dimj);
-    void MacroNodeGen(int mn_dimi, int mn_dimj, int mn_diml);
-    void MacroNodeGen_tile(int mn_dimi, int mn_dimj, int mn_diml);
+    //void MacroNodeGen(int mn_dimi, int mn_dimj, int mn_diml);
+    //void MacroNodeGen_tile(int mn_dimi, int mn_dimj, int mn_diml);
 };
 
 //X*Y+Z

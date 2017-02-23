@@ -20,7 +20,7 @@ using namespace std;
 //{"div_root", 10}
 //};
 
-vector<MacroNodeTemplate*> mn_temps;
+//vector<MacroNodeTemplate*> mn_temps;
 
 
 void Transpose_mtx(vector<vector<int>> &in_mtx, vector<vector<int>> &out_mtx);
@@ -419,7 +419,7 @@ void Load_mtx::TileGen(vector<Tile> &tiles, vector<Operation> &ops){
   cout << "pattern dimension (tile): 1 x " << num_tile << endl;
 }
 
-
+/*
 void Load_mtx::MacroNodeGen(int mn_dimi, int mn_dimj, int mn_diml){
 
   mn_m = (m%mn_dimi == 0)?m/mn_dimi: m/mn_dimi+1;
@@ -586,6 +586,8 @@ void Load_mtx::MacroNodeGen_idxorder(vector<MacroNode*> &mns){
 
   cout << "pattern dimension (macronode): 1 x " << num_mns << endl;
 }
+*/
+
 
 // Store final results
 Store_vec::Store_vec(vector<Operation> &ops, string &in_cp, const vector<int> &in_vec){
@@ -677,6 +679,7 @@ void Store_mtx::TileGen(vector<Tile> &tiles, vector<Operation> &ops){
   cout << "pattern dimension (tile): 1 x " << num_tile << endl;
 }
 
+/*
 void Store_mtx::MacroNodeGen(int mn_dimi, int mn_dimj, int mn_diml){
   mn_m = (m%mn_dimi == 0)?m/mn_dimi: m/mn_dimi+1;
   mn_n = (n%mn_dimj == 0)?n/mn_dimj: n/mn_dimj+1;
@@ -817,6 +820,8 @@ void Store_mtx::MacroNodeGen_idxorder(vector<MacroNode*> &mns){
 
   cout << "pattern dimension (macronode): 1 x " << num_mns << endl;
 }
+*/
+
 
 // Matrix multiplication
 MtxMul::MtxMul(vector<Operation> &ops, string &in_cp, const vector<vector<int>> &in_mtx1, const vector<vector<int>> &in_mtx2, vector<vector<int>> &out_mtx)
@@ -930,6 +935,7 @@ void MtxMul::TileGen(vector<Tile> &tiles, vector<Operation> &ops){
 
 }
 
+/*
 void MtxMul::MacroNodeGen(int mn_dimi, int mn_dimj, int mn_diml){
   int mn_dimi_tile = mn_dimi;
   int mn_dimj_tile = mn_dimj;
@@ -1360,6 +1366,8 @@ void MtxMul::MacroNodeGen_idxorder(vector<MacroNode*> &mns){
     cout << "pattern dimension (macronode): " << num_mn_col << " x " << num_mn_row << endl;	   
   }
 }
+*/
+
 
 MtxMulAdd::MtxMulAdd(vector<Operation> &ops, string &in_cp, const vector<vector<int>> &in_mtx1, const vector<vector<int>> &in_mtx2, const vector<vector<int>> &in_mtx3, vector<vector<int>> &out_mtx)
 {

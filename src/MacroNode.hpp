@@ -25,14 +25,18 @@ class MacroNode{
     map<int, int> op_map;
     //key: op idx in mn; value: real op idx
 
-    set<int> pred_mns;
-    set<int> post_mns;
+    //set<int> pred_mns;
+    //set<int> post_mns;
 
     vector<int> pred_dblks;
     vector<int> post_dblks;
 
     string name;
     int idx;
+
+    int a_base;
+    int b_base;
+    int c_base;
 
 };
 

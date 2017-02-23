@@ -262,17 +262,13 @@ void MemoryTrack::Slice2Dblks(){
   cout << "b region " << b_region << endl;
   cout << "c region " << c_region << endl;
 
-  int num_ablk = Memory::membanks[0].size/a_region;
-  int num_bblk = Memory::membanks[0].size/b_region;
-  int num_cblk = Memory::membanks[0].size/c_region;
+  num_region_a = Memory::membanks[0].size/a_region;
+  num_region_b = Memory::membanks[0].size/b_region;
+  num_region_c = Memory::membanks[0].size/c_region;
 
-  a = vector<int>(num_ablk, -1);
-  b = vector<int>(num_bblk, -1);
-  c = vector<int>(num_cblk, -1);
-
-  cout << "a mem dblk num: " << num_ablk << endl;
-  cout << "b mem dblk num: " << num_bblk << endl;
-  cout << "c mem dblk num: " << num_cblk << endl;
+  cout << "a mem dblk num: " << num_region_a << endl;
+  cout << "b mem dblk num: " << num_region_b << endl;
+  cout << "c mem dblk num: " << num_region_c << endl;
 }
 
 

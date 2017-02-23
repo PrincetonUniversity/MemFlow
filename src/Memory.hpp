@@ -100,9 +100,12 @@ class MemoryTrack{
     //slice mem into a,b,c regions
     //vector length: number of blks in this region
     //vector value: dblk being stored
-    vector<int> a;
-    vector<int> b;
-    vector<int> c;
+    //vector<int> a;
+    //vector<int> b;
+    //vector<int> c;
+    int num_region_a;
+    int num_region_b;
+    int num_region_c;
 
 };
 

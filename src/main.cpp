@@ -27,6 +27,8 @@ namespace Memory{
   vector<MemBank> membanks;
 }
 
+vector<MacroNodeTemplate*> mn_temps;
+
 Parameters opti_para;
 
 int main(int argc, char* argv[]){
@@ -84,6 +86,9 @@ int main(int argc, char* argv[]){
   MemoryTrack mem(opti_para);
   mem.Slice2Dblks();
 
+  CGScheduling mn_sche(mem);
+  mn_sche.MacroNodeGen();
+  
   /*
   //**************************
   //inst generation
