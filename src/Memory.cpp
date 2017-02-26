@@ -244,13 +244,22 @@ void MemoryTrack::getMaxNumLive(){
 }
 
 void MemoryTrack::Slice2Dblks(){
+  sp_regions["A"] = {0, opti_para.num_bank_a-1, 0};
+  sp_regions["B"] = {opti_para.num_bank_a, opti_para.num_bank_a+opti_para.num_bank_b-1, 0};
+  sp_regions["C"] = {opti_para.num_bank_a+opti_para.num_bank_b, opti_para.num_bank_a+opti_para.num_bank_b+opti_para.num_bank_c-1, 0};
+
+  cout << "sp region a start bank " << sp_regions["A"].start_bank << endl;
+  cout << "sp region b start bank " << sp_regions["B"].start_bank << endl;
+  cout << "sp region c start bank " << sp_regions["C"].start_bank << endl;
+
+
   int ablk = opti_para.blk_dimi*opti_para.blk_diml;
   int bblk = opti_para.blk_dimj*opti_para.blk_diml;
   int cblk = opti_para.blk_dimi*opti_para.blk_dimj;
 
-  a_region = (ablk%opti_para.num_bank_a==0)?ablk/opti_para.num_bank_a: ablk/opti_para.num_bank_a+1;
-  b_region = (bblk%opti_para.num_bank_b==0)?bblk/opti_para.num_bank_b: bblk/opti_para.num_bank_b+1;
-  c_region = (cblk%opti_para.num_bank_c==0)?cblk/opti_para.num_bank_c: cblk/opti_para.num_bank_c+1;
+  ablk_interval = (ablk%opti_para.num_bank_a==0)?ablk/opti_para.num_bank_a: ablk/opti_para.num_bank_a+1;
+  bblk_interval = (bblk%opti_para.num_bank_b==0)?bblk/opti_para.num_bank_b: bblk/opti_para.num_bank_b+1;
+  cblk_interval = (cblk%opti_para.num_bank_c==0)?cblk/opti_para.num_bank_c: cblk/opti_para.num_bank_c+1;
 
   cout << "a blk " << ablk << endl;
   cout << "b blk " << bblk << endl;
@@ -258,56 +267,110 @@ void MemoryTrack::Slice2Dblks(){
   cout << "num bank a " << opti_para.num_bank_a << endl;
   cout << "num bank b " << opti_para.num_bank_b << endl;
   cout << "num bank c " << opti_para.num_bank_c << endl;
-  cout << "a region " << a_region << endl;
-  cout << "b region " << b_region << endl;
-  cout << "c region " << c_region << endl;
+  cout << "ablk interval " << ablk_interval << endl;
+  cout << "bblk interval " << bblk_interval << endl;
+  cout << "cblk interval " << cblk_interval << endl;
 
-  num_region_a = Memory::membanks[0].size/a_region;
-  num_region_b = Memory::membanks[0].size/b_region;
-  num_region_c = Memory::membanks[0].size/c_region;
+  sp_regions["A"].num_blks = Memory::membanks[0].size/ablk_interval;
+  sp_regions["B"].num_blks = Memory::membanks[0].size/bblk_interval;
+  sp_regions["C"].num_blks = Memory::membanks[0].size/cblk_interval;
 
-  cout << "a mem dblk num: " << num_region_a << endl;
-  cout << "b mem dblk num: " << num_region_b << endl;
-  cout << "c mem dblk num: " << num_region_c << endl;
+  cout << "a mem dblk num: " << sp_regions["A"].num_blks << endl;
+  cout << "b mem dblk num: " << sp_regions["B"].num_blks << endl;
+  cout << "c mem dblk num: " << sp_regions["C"].num_blks << endl;
+}
+
+void MemoryTrack::Slice2Dblks_buffer(){
+  sp_regions["A"] = {0, opti_para.num_bank_a-1, 0};
+  sp_regions["A1"] = {opti_para.num_bank_a, 2*opti_para.num_bank_a-1, 0};
+  sp_regions["B"] = {2*opti_para.num_bank_a, 2*opti_para.num_bank_a+opti_para.num_bank_b-1, 0};
+  sp_regions["B1"] = {2*opti_para.num_bank_a+opti_para.num_bank_b, 2*opti_para.num_bank_a+2*opti_para.num_bank_b-1, 0};
+  sp_regions["C"] = {2*opti_para.num_bank_a+2*opti_para.num_bank_b, 2*opti_para.num_bank_a+2*opti_para.num_bank_b+opti_para.num_bank_c-1, 0};
+  sp_regions["C1"] = {2*opti_para.num_bank_a+2*opti_para.num_bank_b+opti_para.num_bank_c, 2*opti_para.num_bank_a+2*opti_para.num_bank_b+2*opti_para.num_bank_c-1, 0};
+
+  cout << "sp region a start bank " << sp_regions["A"].start_bank << endl;
+  cout << "sp region a1 start bank " << sp_regions["A1"].start_bank << endl;
+  cout << "sp region b start bank " << sp_regions["B"].start_bank << endl;
+  cout << "sp region b1 start bank " << sp_regions["B1"].start_bank << endl;
+  cout << "sp region c start bank " << sp_regions["C"].start_bank << endl;
+  cout << "sp region c1 start bank " << sp_regions["C1"].start_bank << endl;
+
+  int ablk = opti_para.blk_dimi*opti_para.blk_diml;
+  int bblk = opti_para.blk_dimj*opti_para.blk_diml;
+  int cblk = opti_para.blk_dimi*opti_para.blk_dimj;
+
+  ablk_interval = (ablk%opti_para.num_bank_a==0)?ablk/opti_para.num_bank_a: ablk/opti_para.num_bank_a+1;
+  bblk_interval = (bblk%opti_para.num_bank_b==0)?bblk/opti_para.num_bank_b: bblk/opti_para.num_bank_b+1;
+  cblk_interval = (cblk%opti_para.num_bank_c==0)?cblk/opti_para.num_bank_c: cblk/opti_para.num_bank_c+1;
+
+  cout << "a blk " << ablk << endl;
+  cout << "b blk " << bblk << endl;
+  cout << "c blk " << cblk << endl;
+  cout << "num bank a " << opti_para.num_bank_a << endl;
+  cout << "num bank b " << opti_para.num_bank_b << endl;
+  cout << "num bank c " << opti_para.num_bank_c << endl;
+  cout << "ablk interval " << ablk_interval << endl;
+  cout << "bblk interval " << bblk_interval << endl;
+  cout << "cblk interval " << cblk_interval << endl;
+
+  sp_regions["A"].num_blks = Memory::membanks[0].size/ablk_interval;
+  sp_regions["A1"].num_blks = Memory::membanks[0].size/ablk_interval;
+  sp_regions["B"].num_blks = Memory::membanks[0].size/bblk_interval;
+  sp_regions["B1"].num_blks = Memory::membanks[0].size/bblk_interval;
+  sp_regions["C"].num_blks = Memory::membanks[0].size/cblk_interval;
+  sp_regions["C1"].num_blks = Memory::membanks[0].size/cblk_interval;
+
+  cout << "a mem dblk num: " << sp_regions["A"].num_blks << endl;
+  cout << "a1 mem dblk num: " << sp_regions["A1"].num_blks << endl;
+  cout << "b mem dblk num: " << sp_regions["B"].num_blks << endl;
+  cout << "b1 mem dblk num: " << sp_regions["B1"].num_blks << endl;
+  cout << "c mem dblk num: " << sp_regions["C"].num_blks << endl;
+  cout << "c1 mem dblk num: " << sp_regions["C1"].num_blks << endl;
 }
 
 
-array<int,2> MemoryTrack::getAddr_a_ele(int base, int m, int n, int i, int j){
+array<int,2> MemoryTrack::getAddr_a_ele(DblkAddr dblk_addr, int m, int n, int i, int j){
   array<int,2> addr;
   
   int blk_i = i/opti_para.subblk_dimi;
   int blk_idx = (blk_i*n+j)/opti_para.subblk_diml;
   //addr in bank
-  int addr_offset = base+2*blk_idx;
+  int addr_offset = dblk_addr.base+2*blk_idx;
 
   int i_insubblk = i%opti_para.subblk_dimi;
   int j_insubblk = (blk_i*n+j)%opti_para.subblk_diml;
   int idx_insubblk = j_insubblk*opti_para.subblk_dimi + i_insubblk;
   //bank
-  addr[0] = idx_insubblk/2;
+  cout << "dblk region " << dblk_addr.region << endl;
+  cout << "start bank " << sp_regions[dblk_addr.region].start_bank << endl;
+  cout << "start bank " << sp_regions["A"].start_bank << endl;
+  addr[0] = sp_regions[dblk_addr.region].start_bank+idx_insubblk/2;
   addr[1] = addr_offset+idx_insubblk%2;
 
   return addr;
 }
 
-array<int,2> MemoryTrack::getAddr_b_ele(int base, int m, int n, int i, int j){
+array<int,2> MemoryTrack::getAddr_b_ele(DblkAddr dblk_addr, int m, int n, int i, int j){
   array<int,2> addr;
 
   int blk_n = n/opti_para.subblk_dimj;
   int blk_i = i/opti_para.subblk_diml;
   int blk_j = j/opti_para.subblk_dimj;
   int blk_idx = blk_i*blk_n+blk_j;
-  int addr_offset = base+2*blk_idx;
+  int addr_offset = dblk_addr.base+2*blk_idx;
 
   int i_insubblk = i%opti_para.subblk_diml;
   int j_insubblk = j%opti_para.subblk_dimj;
   int idx_insubblk = i_insubblk*opti_para.subblk_dimj+j_insubblk;
-  addr[0] = opti_para.num_bank_a+idx_insubblk/2;
+  cout << "dblk region " << dblk_addr.region << endl;
+  cout << "start bank " << sp_regions[dblk_addr.region].start_bank << endl;
+  cout << "start bank " << sp_regions["B"].start_bank << endl;
+  addr[0] = sp_regions[dblk_addr.region].start_bank+idx_insubblk/2;
   addr[1] = addr_offset+idx_insubblk%2;
   return addr;
 }
 
-array<int,2> MemoryTrack::getAddr_c_ele(int base, int m, int n, int i, int j, int in_out_latency){
+array<int,2> MemoryTrack::getAddr_c_ele(DblkAddr dblk_addr, int m, int n, int i, int j, int in_out_latency){
   array<int,2> addr;
 
   int blk_n = n/opti_para.subblk_dimj;
@@ -333,27 +396,28 @@ array<int,2> MemoryTrack::getAddr_c_ele(int base, int m, int n, int i, int j, in
   int j_insubblk = j%opti_para.subblk_dimj;
   int idx_insubblk = i_insubblk*opti_para.subblk_dimj+j_insubblk;
 
-  //if(blk_type == 0){
-  //  addr[0] = (opti_para.num_bank_a+opti_para.num_bank_b)+idx_insubblk/2;
-  //}
-  //else{
-  //  addr[0] = (opti_para.num_bank_a+opti_para.num_bank_b+opti_para.num_bank_c/2)+idx_insubblk/2;
-  //}
-  addr[0] = (opti_para.num_bank_a+opti_para.num_bank_b)+idx_insubblk;
-  addr[1] = base+blk_idx;
+  addr[0] = sp_regions[dblk_addr.region].start_bank+idx_insubblk;
+  addr[1] = dblk_addr.base+blk_idx;
   return addr;
 }
 
-int MemoryTrack::getBase_a(int blk_idx){
-  return blk_idx*a_region;
-}
+DblkAddr MemoryTrack::getDblkAddr(string mtx_name, int blk_idx){
+  DblkAddr da;
+  if(mtx_name == "A"){
+    da.region = "A";
+    da.base = blk_idx*ablk_interval;
+  }
 
-int MemoryTrack::getBase_b(int blk_idx){
-  return blk_idx*b_region;
-}
+  if(mtx_name == "B"){
+    da.region = "B";
+    da.base = blk_idx*bblk_interval;
+  }
 
-int MemoryTrack::getBase_c(int blk_idx){
-  return blk_idx*c_region;
+  if(mtx_name == "C"){
+    da.region = "C";
+    da.base = blk_idx*cblk_interval;
+  }
+  return da;
 }
 
 

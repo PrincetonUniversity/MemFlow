@@ -52,11 +52,11 @@ class MacroNodeTemplate{
     ~MacroNodeTemplate(){};
 
     void MN_mtxmul(int in_m, int in_n, int in_k, bool sche);
-    void MN_load(int tile_width, bool sche);
-    void MN_store(int tile_width, bool sche);
-    void MN_2load_mtxmul(int m, int n, int k, bool sche);
-    void MN_load1_mtxmul(int m, int n, int k, bool sche);
-    void MN_load2_mtxmul(int m, int n, int k, bool sche);
+    //void MN_load(int tile_width, bool sche);
+    //void MN_store(int tile_width, bool sche);
+    //void MN_2load_mtxmul(int m, int n, int k, bool sche);
+    //void MN_load1_mtxmul(int m, int n, int k, bool sche);
+    //void MN_load2_mtxmul(int m, int n, int k, bool sche);
     void GetScheduling();
 
     //ops, tils inside mn
@@ -96,10 +96,9 @@ class MacroNodeTemplate{
     map<int,array<int,2>> ioop_addr;
     //key: io op, value: mem addr
 
-    int A_base;
-    int B_base;
-    int Cin_base;
-    int Cout_base;
+    DblkAddr a_blk;
+    DblkAddr b_blk;
+    DblkAddr c_blk;
 
 
     vector<int> max_num_live;

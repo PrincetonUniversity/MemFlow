@@ -6,8 +6,27 @@
 
 #include "Tile.hpp"
 #include "MacroNodeTemplate.hpp"
+#include "Memory.hpp"
 
 using namespace std;
+
+class LoadDblk{
+  public:
+    LoadDblk(){};
+    ~LoadDblk(){};
+
+    int getLatency();
+    vector<int> dblk_idx;
+};
+
+class StoreDblk{
+  public:
+    StoreDblk(){};
+    ~StoreDblk(){};
+
+    int getLatency();
+    vector<int> dblk_idx;
+};
 
 class MacroNode{
   public:
@@ -34,9 +53,9 @@ class MacroNode{
     string name;
     int idx;
 
-    int a_base;
-    int b_base;
-    int c_base;
+    DblkAddr a_sp_addr;
+    DblkAddr b_sp_addr;
+    DblkAddr c_sp_addr;
 
 };
 

@@ -11,19 +11,9 @@
 
 using namespace std;
 
-struct load_dblk{
-  int dblk_idx;
-  int mem_base;
-};
-
-struct store_dblk{
-  int dblk_idx;
-  int mem_base;
-};
-
 class CGScheduling{
   public:
-    CGScheduling(MemoryTrack& in_mem);
+    CGScheduling();
     ~CGScheduling();
 
     void genDblks(string mtx_name, int m, int n, int blk_dimi, int blk_dimj);
@@ -35,8 +25,8 @@ class CGScheduling{
     vector<MacroNode> mns;
     vector<DataBlock> dblks;
 
-    vector<vector<load_dblk>> load;
-    vector<vector<store_dblk>> store;
+    vector<LoadDblk> load;
+    vector<StoreDblk> store;
 
     MemoryTrack& mem;
 

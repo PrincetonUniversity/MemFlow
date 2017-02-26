@@ -19,4 +19,6 @@ namespace Memory{
 extern vector<MacroNodeTemplate*> mn_temps;
 
 extern Parameters opti_para;
+
+extern MemoryTrack* global_sp;
 #endif

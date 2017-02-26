@@ -5,6 +5,24 @@
 
 using namespace std;
 
+int LoadDblk::getLatency(){
+  if(dblk_idx.empty()){
+    return 0;
+  }
+  else{
+    return 100;
+  }
+}
+
+int StoreDblk::getLatency(){
+  if(dblk_idx.empty()){
+    return 0;
+  }
+  else{
+    return 100;
+  }
+}
+
 MacroNode::MacroNode(MacroNodeTemplate* in_mn_temp):mn_temp(in_mn_temp){
   name = mn_temp->name;
 }

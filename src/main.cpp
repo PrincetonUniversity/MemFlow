@@ -14,6 +14,7 @@
 #include "Util.hpp"
 #include "Setting.hpp"
 #include "ProcessConfig.hpp"
+#include "Memory.hpp"
 
 using namespace std;
 
@@ -30,6 +31,8 @@ namespace Memory{
 vector<MacroNodeTemplate*> mn_temps;
 
 Parameters opti_para;
+MemoryTrack* global_sp;
+
 
 int main(int argc, char* argv[]){
 
@@ -58,7 +61,7 @@ int main(int argc, char* argv[]){
 
   //Parameters opti_para;
   OptiMacroNode opti(m, n, k, opti_para);
-  opti.optiPara();
+  opti.optiPara_buffer();
 
   cout << endl << "Optimized blocking " << endl;
   cout << "blk dimi: " << opti_para.blk_dimi << endl;
@@ -84,11 +87,13 @@ int main(int argc, char* argv[]){
  
 
   MemoryTrack mem(opti_para);
-  mem.Slice2Dblks();
+  global_sp = &mem;
+  global_sp->Slice2Dblks_buffer();
 
-  CGScheduling mn_sche(mem);
+  CGScheduling mn_sche;
   mn_sche.MacroNodeGen();
-  
+  mn_sche.PrintPerf();
+
   /*
   //**************************
   //inst generation

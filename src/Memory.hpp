@@ -9,6 +9,17 @@
 
 using namespace std;
 
+struct SPRegion{
+  int start_bank;
+  int end_bank;
+  int num_blks;
+};
+
+struct DblkAddr{
+  string region;
+  int base;
+};
+
 class MemoryTrack{
   public:
     MemoryTrack(Parameters &in_opti_para);
@@ -81,21 +92,24 @@ class MemoryTrack{
 
 
     void Slice2Dblks();
-    int getBase_a(int blk_idx);
-    int getBase_b(int blk_idx);
-    int getBase_c(int blk_idx);
-    array<int,2> getAddr_a_ele(int base, int m, int n, int i, int j);
-    array<int,2> getAddr_b_ele(int base, int m, int n, int i, int j);
-    array<int,2> getAddr_c_ele(int base, int m, int n, int i, int j, int in_out_latency);
+    void Slice2Dblks_buffer();
+
+
+    DblkAddr getDblkAddr(string mtx_name, int blk_idx);
+    array<int,2> getAddr_a_ele(DblkAddr dblk_addr, int m, int n, int i, int j);
+    array<int,2> getAddr_b_ele(DblkAddr dblk_addr, int m, int n, int i, int j);
+    array<int,2> getAddr_c_ele(DblkAddr dblk_addr, int m, int n, int i, int j, int in_out_latency);
 
     Parameters& opti_para;
+    map<string, SPRegion> sp_regions;
+
     int num_bank_a;
     int num_bank_b;
     int num_bank_c;
 
-    int a_region;
-    int b_region;
-    int c_region;
+    int ablk_interval;
+    int bblk_interval;
+    int cblk_interval;
     
     //slice mem into a,b,c regions
     //vector length: number of blks in this region

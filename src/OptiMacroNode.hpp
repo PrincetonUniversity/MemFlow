@@ -54,6 +54,12 @@ class OptiMacroNode{
 	unsigned long long getPerf();
 	void optiPara();
 
+
+	bool ConstraintBW_buffer(int k_subblk, int m_subblk, int n_subblk);
+	unsigned long long spill_a_buffer();
+	unsigned long long spill_b_buffer();
+	void optiPara_buffer();
+
 	int mem_size;
 
 	//original input size
