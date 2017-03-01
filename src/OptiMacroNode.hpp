@@ -5,12 +5,16 @@
 
 using namespace std;
 
+struct LoopOrder{
+  array<string,3> loop_ind;
+};
 
 class Parameters{
   public:
   Parameters();
   ~Parameters(){};
 
+  void PrintInfo();
 
   int blk_dimi;
   int blk_dimj;
@@ -19,6 +23,10 @@ class Parameters{
   int subblk_dimi;
   int subblk_dimj;
   int subblk_diml;
+
+  int blk_m;
+  int blk_n;
+  int blk_k;
 
   int k_stage;
   int num_cb;
@@ -30,37 +38,45 @@ class Parameters{
   int m_ex;
   int n_ex;
   int k_ex;
+  
+  unsigned long long num_spill;
+
+  LoopOrder loop_order;
 };
 
 
 class OptiMacroNode{
   public:
 	OptiMacroNode(int in_m, int in_n, int in_k, Parameters& in_opti_para);
-
 	~OptiMacroNode(){};
 
-	unsigned long long num_spills_arow();
-	unsigned long long num_spills_bcol();
-	unsigned long long num_spills_c();
-
-	void SweepMemSize();
-	void genMNSize_tile();
-	void genMNSize();
 	int MinMem(int blk_dimi, int blk_dimj, int blk_diml);
 
-	bool ConstraintBW(int k_subblk, int m_subblk, int n_subblk);
-	unsigned long long spill_a();
-	unsigned long long spill_b();
-	unsigned long long getPerf();
-	void optiPara();
+	void genSubblkSet();
 
+	unsigned long long spill(LoopOrder &loop_order);
+	unsigned long long spill_type1(int blk_size, int num_dblk_mem, int num_dblk_need, int num_reuse, int iterate);
+	unsigned long long spill_type2(int blk_size, int num_dblk_mem, int num_dblk_need, int num_reuse);
+	
+	unsigned long long getPerf();
+	int MinPort(int sb_dimi, int sb_dimj, int sb_diml);
+	int MinBank(int k_subblk, int m_subblk, int n_subblk);
+
+	void optiPara();
 
 	bool ConstraintBW_buffer(int k_subblk, int m_subblk, int n_subblk);
 	unsigned long long spill_a_buffer();
 	unsigned long long spill_b_buffer();
 	void optiPara_buffer();
 
+	LoopOrder loop_order;
+
 	int mem_size;
+
+	int total_mem_port;
+
+	int num_port_used;
+	vector<array<int,3>> sb_dim_set;
 
 	//original input size
 	int m;
@@ -72,6 +88,10 @@ class OptiMacroNode{
 	int num_bank_b;
 	int num_bank_c;
 	
+	int num_ablk_mem;
+	int num_bblk_mem;
+	int num_cblk_mem;
+
 	//subblk dimension
 	int subblk_dimi;
 	int subblk_dimj;
@@ -97,10 +117,11 @@ class OptiMacroNode{
 	int b;
 	int c;
 
-	//address regions taken by a,b,c blocks
-	int a_region;
-	int b_region;
-	int c_region;
+	//address interval taken by a,b,c blocks
+	int a_interval;
+	int b_interval;
+	int c_interval;
+
 	
 	//extended size to realize completely divided
 	int m_ex;
@@ -111,55 +132,10 @@ class OptiMacroNode{
 	unsigned long long num_spill;
 	unsigned long long perf;
 	
-	//optimization result
-	int blk_dimi_opti;
-	int blk_dimj_opti;
-	int blk_diml_opti;
-
-	int subblk_dimi_opti;
-	int subblk_dimj_opti;
-	int subblk_diml_opti;
-
-	int k_stage;
-	int num_cb;
-
-	int num_bank_a_opti;
-	int num_bank_b_opti;
-	int num_bank_c_opti;
 	Parameters& opti_para;
 
-	
-	//mem size occupied by a,b,c block
-	int a_space;
-	int b_space;
-	int c_space;
 
-	//minimum mem for computation
-	int mi;
 
-	unsigned long long vol;
-
-	int blk_dimi_tile_opti;
-	int blk_dimj_tile_opti;
-	int blk_diml_tile_opti;
-
-	unsigned long long vol_opti;
-
-	int mi_opti;
-	
-	//tile dimension
-	int tile_dimi;
-	int tile_dimj;
-	int tile_diml;
-
-	//original #tiles
-	int tile_m;
-	int tile_n;
-	int tile_k;
-	
-	int m_ex_opti;
-	int n_ex_opti;
-	int k_ex_opti;
 };
 
 #endif

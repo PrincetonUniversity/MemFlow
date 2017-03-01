@@ -60,9 +60,7 @@ int TileScheduling::Executing_cbs(){
 
     vector<bool> finish_stamp(cb_events.size(), false);
     for(int i=0; i<cb_events.size(); i++){
-      if(i == 0){
-        cout << endl << "cb " << i << endl;
-      }
+      cout << endl << "cb " << i << endl;
       for(int j=cb_events[i].num_stage-1; j>=0; j--){
         //take new event
 	if(i == 0){
@@ -132,8 +130,11 @@ int TileScheduling::Executing_cbs(){
 	  }
 	}
       }
+      cout << "finish this cb" << endl;
+
     }
 
+    cout << "finish this cycle " << endl;
     finished = true;
     for(int i=0; i<cb_events.size(); i++){
       finished = finished && finish_stamp[i];

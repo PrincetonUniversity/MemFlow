@@ -1,6 +1,8 @@
 #include<iostream>
 #include<fstream>
 #include<climits>
+#include<vector>
+#include<array>
 
 #include "OptiMacroNode.hpp"
 #include "Setting.hpp"
@@ -29,243 +31,57 @@ Parameters::Parameters(){
 
 }
 
+void Parameters::PrintInfo(){
+  int blk_m = m_ex/blk_dimi;
+  int blk_n = n_ex/blk_dimj;
+  int blk_k = k_ex/blk_diml;
+  
+  cout << endl << "Matrix Multiplication" << endl;
+  cout << "m: " << m_ex << endl;
+  cout << "n: " << n_ex << endl;
+  cout << "k: " << k_ex << endl;
+
+  cout << endl << "First blocking level: " << endl;
+  cout << "Block dimension: " << endl;
+  cout << "    blk_dim_i: " << blk_dimi << endl;
+  cout << "    blk_dim_j: " << blk_dimj << endl;
+  cout << "    blk_dim_l: " << blk_diml << endl;
+  cout << "Data block size: " << endl;
+  cout << "    block of A (blk_dim_i*blk_diml): " << blk_dimi*blk_diml << endl;
+  cout << "    block of B (blk_dim_j*blk_diml): " << blk_dimj*blk_diml << endl;
+  cout << "    block of C (blk_dim_i*blk_dimj): " << blk_dimi*blk_dimj << endl;
+  cout << "Number of data blocks: " << endl;
+  cout << "    number of blocks in A: " << blk_m << "x" << blk_k << "=" << blk_m*blk_k << endl;
+  cout << "    number of blocks in B: " << blk_k << "x" << blk_n << "=" << blk_k*blk_n << endl;
+  cout << "    number of blocks in C: " << blk_m << "x" << blk_n << "=" << blk_m*blk_n << endl;
+
+  cout << endl << "Second blocking level: " << endl;
+  cout << "Sub-block dimension: " << endl;
+  cout << "    subblk_dim_i: " << subblk_dimi << endl;
+  cout << "    subblk_dim_j: " << subblk_dimj << endl;
+  cout << "    subblk_dim_l: " << subblk_diml << endl;
+
+  cout << endl << "Compute block parameters: " << endl;
+  cout << "Number of stages: " << subblk_diml << endl;
+  cout << "Parallelization: " << subblk_dimi*subblk_dimj << endl;
+
+  cout << endl << "Loop order: " << endl;
+  cout << loop_order.loop_ind[0] << "->" << loop_order.loop_ind[1] << "->" << loop_order.loop_ind[2] << endl;
+
+  cout << endl << "Estimated number of spills: " << num_spill << endl;
+}
+
 OptiMacroNode::OptiMacroNode(int in_m, int in_n, int in_k, Parameters& in_opti_para):opti_para(in_opti_para){
   m = in_m;
   n = in_n;
   k = in_k;
-
-}
-
-unsigned long long OptiMacroNode::num_spills_arow(){
-  unsigned long long spill;
-
-  unsigned long long spill_a;
-  unsigned long long spill_b;
-
-  int num_ablk = (mem_size-mi)/a_space;
-  if(num_ablk >= (blk_k-1)){
-    spill_a = 0;
-    int num_bblk = (mem_size-mi-a_space*(blk_k-1))/b_space;
-    if(num_bblk >= (blk_n*blk_k-1)){
-      spill_b = 0;
-    }
-    else{
-      spill_b = b_space*(blk_n*blk_k-num_bblk)*(blk_m-1);
-    }
-  }
-  else{
-    spill_a = a_space*(blk_k-num_ablk)*(blk_n-1)*blk_m;
-    spill_b = b_space*blk_n*blk_k*(blk_m-1);
-  }
-
-  spill = spill_a + spill_b;
-  return spill;
-}
-
-
-unsigned long long OptiMacroNode::num_spills_bcol(){
-    unsigned long long spill;
-
-    unsigned long long spill_a;
-    unsigned long long spill_b;
-
-    int num_bblk = (mem_size-mi)/b_space;
-    if(num_bblk >= (blk_k-1)){
-        spill_b = 0;
-        int num_ablk = (mem_size-mi-b_space*(blk_k-1))/a_space;
-        if(num_ablk >= (blk_m*blk_k-1)){
-            spill_a = 0;
-        }
-        else{
-            spill_a = a_space*(blk_m*blk_k-num_ablk)*(blk_n-1);
-        }
-    }
-    else{
-        spill_b = b_space*(blk_k-num_bblk)*(blk_m-1)*blk_n;
-        spill_a = a_space*blk_m*blk_k*(blk_n-1);
-    }
-
-    spill = spill_a + spill_b;
-    return spill;
-}
-
-unsigned long long OptiMacroNode::num_spills_c(){
-    unsigned long long spill;
-
-    unsigned long long spill_b;
-    unsigned long long spill_c;
-
-    int num_bblk = (mem_size-mi)/b_space;
-    if(num_bblk >= (blk_n-1)){
-        spill_b = 0;
-        int num_cblk = (mem_size-mi-b_space*(blk_n-1))/c_space;
-        if(num_cblk >= (blk_m*blk_n-1)){
-            spill_c = 0;
-        }
-        else{
-            spill_c = c_space*(blk_m*blk_n-num_cblk)*(blk_k-1);
-        }
-    }
-    else{
-        spill_b = b_space*(blk_n-num_bblk)*(blk_m-1)*blk_k;
-        spill_c = c_space*blk_m*blk_n*(blk_k-1);
-    }
-
-    spill = spill_b + spill_c;
-    return spill;
-}
-
-
-void OptiMacroNode::genMNSize_tile(){
-  //try brute forth algorithm
-  num_spill = LLONG_MAX;
-  vol_opti = LLONG_MAX;
-
-  for(int mb_t=1; mb_t<=tile_m; mb_t++){
-      blk_dimi = mb_t*tile_dimi;
-      if(MinMem(blk_dimi, 1, 1) > mem_size){
-          break;
-      }
-    for(int nb_t=1; nb_t<=tile_n; nb_t++){
-        blk_dimj = nb_t*tile_dimj;
-        if(MinMem(blk_dimi, blk_dimj, 1) > mem_size){
-            break;
-        }
-      for(int kb_t=1; kb_t<=tile_k; kb_t++){
-          blk_diml = kb_t*tile_diml;
-          if(MinMem(blk_dimi, blk_dimj, blk_diml) > mem_size){
-              break;
-          }
-
-         a = blk_dimi*blk_diml;
-         b = blk_dimj*blk_diml;
-         c = blk_dimi*blk_dimj;
-
-         a_space = (a%Memory::num_bank==0)?a:(a/Memory::num_bank+1)*Memory::num_bank;
-         b_space = (b%Memory::num_bank==0)?b:(b/Memory::num_bank+1)*Memory::num_bank;
-         c_space = (c%Memory::num_bank==0)?c:(c/Memory::num_bank+1)*Memory::num_bank;
-
-         mi = a_space+b_space+2*c_space;
-         if(mi < mem_size){
-             //cout << endl;
-             //cout << "blk_dimi " << blk_dimi << endl;
-             //cout << "blk_dimj " << blk_dimj << endl;
-             //cout << "blk_diml " << blk_diml << endl;
-
-           blk_m = (m%blk_dimi==0)?m/blk_dimi:m/blk_dimi+1;
-           blk_n = (n%blk_dimj==0)?n/blk_dimj:n/blk_dimj+1;
-           blk_k = (k%blk_diml==0)?k/blk_diml:k/blk_diml+1;
-
-	   m_ex = blk_m*blk_dimi;
-	   n_ex = blk_n*blk_dimj;
-	   k_ex = blk_k*blk_diml;
-	   vol = m_ex*n_ex*k_ex;
-
-           unsigned long long num_spill_t = num_spills_arow();
-             //cout << "num spill " << num_spill_t << endl;
-
-           if((num_spill_t < num_spill) || ((num_spill_t == num_spill) && (vol <= vol_opti))){
-             num_spill = num_spill_t;
-             blk_dimi_opti = blk_dimi;
-             blk_dimj_opti = blk_dimj;
-             blk_diml_opti = blk_diml;
-
-             m_ex_opti = m_ex;
-             n_ex_opti = n_ex;
-             k_ex_opti = k_ex;
-	     vol_opti = vol;
-
-             mi_opti = mi;
-           }
-         }
-      }
-    }
-  }
 }
 
 int OptiMacroNode::MinMem(int blk_dimi, int blk_dimj, int blk_diml){
-    return (blk_dimi*blk_diml+blk_dimj*blk_diml+2*blk_dimi*blk_dimj);
+    return (blk_dimi*blk_diml+blk_dimj*blk_diml+blk_dimi*blk_dimj);
 }
 
-
-void OptiMacroNode::genMNSize(){
-  //try brute forth algorithm
-  num_spill = LLONG_MAX;
-  vol_opti = LLONG_MAX;
-
-  for(blk_dimi=1; blk_dimi<=m; blk_dimi++){
-     if(MinMem(blk_dimi, 1, 1) > mem_size){
-       break;
-     }
-    for(blk_dimj=1; blk_dimj<=n; blk_dimj++){
-        if(MinMem(blk_dimi, blk_dimj, 1) > mem_size){
-          break;
-        }
-      for(blk_diml=1; blk_diml<=k; blk_diml++){
-         if(MinMem(blk_dimi, blk_dimj, blk_diml) > mem_size){
-           break;
-         }
-
-          //cout << "blk_dimi " << blk_dimi << endl;
-          //cout << "blk_dimj " << blk_dimj << endl;
-          //cout << "blk_diml " << blk_diml << endl;
-
-         a = blk_dimi*blk_diml;
-         b = blk_dimj*blk_diml;
-         c = blk_dimi*blk_dimj;
-
-         a_space = a;
-         b_space = b;
-         c_space = c;
-
-         mi = a_space + b_space + 2*c_space;
-
-         if(mi < mem_size){
-           blk_m = (m%blk_dimi==0)?m/blk_dimi:m/blk_dimi+1;
-           blk_n = (n%blk_dimj==0)?n/blk_dimj:n/blk_dimj+1;
-           blk_k = (k%blk_diml==0)?k/blk_diml:k/blk_diml+1;
-	   
-	   m_ex = blk_m*blk_dimi;
-	   n_ex = blk_n*blk_dimj;
-	   k_ex = blk_k*blk_diml;
-	   vol = m_ex*n_ex*k_ex;
-
-           unsigned long long num_spill_t = num_spills_arow();
-
-           if((num_spill_t < num_spill) || ((num_spill_t == num_spill) && (vol <= vol_opti))){
-             num_spill = num_spill_t;
-
-             blk_dimi_opti = blk_dimi;
-             blk_dimj_opti = blk_dimj;
-             blk_diml_opti = blk_diml;
-
-             m_ex_opti = m_ex;
-             n_ex_opti = n_ex;
-             k_ex_opti = k_ex;
-	     vol_opti = vol;
-
-             mi_opti = mi;
-           }
-         }
-      }
-    }
-  }
-}
-
-
-void OptiMacroNode::SweepMemSize(){
-  ofstream f;
-  f.open("./mn_size/mn_vs_mem.txt");
-
-  for(mem_size=10; mem_size<16000; mem_size+=100){
-    genMNSize();
-      f << mem_size << " " << blk_dimi_opti << " " << blk_dimj_opti << " " << blk_diml_opti << " " << num_spill << endl;
-  }
-  f.close();
-}
-
-
-bool OptiMacroNode::ConstraintBW(int k_subblk, int m_subblk, int n_subblk){
+int OptiMacroNode::MinBank(int k_subblk, int m_subblk, int n_subblk){
   int port_per_bank = Memory::membanks[0].num_port;
 
   int num_port_a = k_subblk*m_subblk;
@@ -277,36 +93,102 @@ bool OptiMacroNode::ConstraintBW(int k_subblk, int m_subblk, int n_subblk){
   int num_port_c = 2*m_subblk*n_subblk;
   num_bank_c = (num_port_c%port_per_bank==0)?num_port_c/port_per_bank:num_port_c/port_per_bank+1;
 
-  if(num_bank_a+num_bank_b+num_bank_c <= Memory::num_bank){
-    return true;
-  }
-  else{
-    return false;
+  return (num_bank_a+num_bank_b+num_bank_c);
+}
+
+
+int OptiMacroNode::MinPort(int sb_dimi, int sb_dimj, int sb_diml){
+  return (sb_diml*sb_dimi + sb_diml*sb_dimj + 2*sb_dimi*sb_dimj);
+}
+
+void OptiMacroNode::genSubblkSet(){
+  num_port_used = 0;
+  for(subblk_dimi=1; subblk_dimi<=m; subblk_dimi++){
+    if(MinPort(subblk_dimi, 1, 1) > global_sp->total_port){
+      break;
+    }
+    for(subblk_dimj=1; subblk_dimj<=n; subblk_dimj++){
+      if(MinPort(subblk_dimi, subblk_dimj, 1) > global_sp->total_port){
+        break;
+      }
+      for(subblk_diml=1; subblk_diml<=k; subblk_diml++){
+        cout << "subblk_dim: " << subblk_dimi << " " << subblk_dimj << " " << subblk_diml << endl;
+	int min_bank = MinBank(subblk_dimi, subblk_dimj, subblk_diml);
+	cout << "min bank: " << min_bank << endl;
+	cout << "num_port_used " << num_port_used << endl;
+	if(min_bank < Memory::num_bank){
+	  int min_port = MinPort(subblk_dimi, subblk_dimj, subblk_diml);
+	  if(min_port >= num_port_used){
+	    array<int,3> subblk_dim = {subblk_dimi, subblk_dimj, subblk_diml};
+	    if(min_port > num_port_used){
+	      sb_dim_set.clear();
+	      num_port_used = min_port;
+	    }
+	    sb_dim_set.push_back(subblk_dim);
+	  }
+	}
+	else{
+	  break;
+	}
+      }
+    }
   }
 }
 
-unsigned long long OptiMacroNode::spill_a(){
-  unsigned long long spill;
-  int num_a_region = Memory::membanks[0].size/a_region;
 
-  if(num_a_region >= blk_k){
+unsigned long long OptiMacroNode::spill(LoopOrder& loop_order){
+  unsigned long long spill;
+  unsigned long long spill1;
+  unsigned long long spill2;
+  if(loop_order.loop_ind == array<string,3>{"m","n","k"}){
+    spill1 = spill_type1(a, num_ablk_mem, blk_k, blk_n, blk_m);
+    spill2  = spill_type2(b, num_bblk_mem, blk_k*blk_n, blk_m);
+  }
+  else if(loop_order.loop_ind == array<string,3>{"m","k","n"}){
+    spill1 = spill_type1(c, num_cblk_mem, blk_n, blk_k, blk_m);
+    spill2 = spill_type2(b, num_bblk_mem, blk_k*blk_n, blk_m);
+  }
+  else if(loop_order.loop_ind == array<string,3>{"n","m","k"}){
+    spill1 = spill_type1(b, num_bblk_mem, blk_k, blk_m, blk_n);
+    spill2 = spill_type2(a, num_ablk_mem, blk_m*blk_k, blk_n);
+  }
+  else if(loop_order.loop_ind == array<string,3>{"n","k","m"}){
+    spill1 = spill_type1(c, num_cblk_mem, blk_m, blk_k, blk_n);
+    spill2 = spill_type2(a, num_ablk_mem, blk_m*blk_k, blk_n);
+  }
+  else if(loop_order.loop_ind == array<string,3>{"k","m","n"}){
+    spill1 = spill_type1(b, num_bblk_mem, blk_n, blk_m, blk_k);
+    spill2 = spill_type2(c, num_cblk_mem, blk_m*blk_n, blk_k);
+  }
+  else{
+    spill1 = spill_type1(a, num_ablk_mem, blk_m, blk_n, blk_k);
+    spill2 = spill_type2(c, num_cblk_mem, blk_m*blk_n, blk_k);
+  }
+  
+  spill = spill1 + spill2;
+  return spill;
+}
+
+unsigned long long OptiMacroNode::spill_type1(int blk_size, int num_dblk_mem, int num_dblk_need, int num_reuse, int iterate){
+  unsigned long long spill;
+
+  if(num_dblk_mem >= num_dblk_need){
     spill = 0;
   }
   else{
-    spill = a*(blk_k+1-num_a_region)*(blk_n-1)*blk_m;
+    spill = blk_size*(num_dblk_need+1-num_dblk_mem)*(num_reuse-1)*iterate;
   }
   return spill;
 }
 
-unsigned long long OptiMacroNode::spill_b(){
+unsigned long long OptiMacroNode::spill_type2(int blk_size, int num_dblk_mem, int num_dblk_need, int num_reuse){
   unsigned long long spill;
-  int num_b_region = Memory::membanks[0].size/b_region;
 
-  if(num_b_region >= blk_n*blk_k){
+  if(num_dblk_mem >= num_dblk_need){
     spill = 0;
   }
   else{
-    spill = b*(blk_n*blk_k+1-num_b_region)*(blk_m-1);
+    spill = blk_size*(num_dblk_need+1-num_dblk_mem)*(num_reuse-1);
   }
   return spill;
 }
@@ -325,17 +207,30 @@ unsigned long long OptiMacroNode::getPerf(){
 }
 
 void OptiMacroNode::optiPara(){
-  cout << "Memory banks: " << Memory::num_bank << endl;
-  cout << "bank 0 size: " << Memory::membanks[0].size << endl;
-
-
   num_spill = LLONG_MAX;
   perf = LLONG_MAX;
-  for(subblk_dimi=1; subblk_dimi<=m; subblk_dimi++){
-    for(subblk_dimj=1; subblk_dimj<=n; subblk_dimj++){
-      for(subblk_diml=1; subblk_diml<=k; subblk_diml++){
- 	if(ConstraintBW(subblk_diml, subblk_dimi, subblk_dimj)){
-	  cout << endl;
+  
+  genSubblkSet();
+  //cout << "subblk dim sets: " << endl;
+  //for(auto &i: sb_dim_set){
+  //  cout << i[0] << " " << i[1] << " " << i[2] << endl;
+  //}
+
+  for(auto &i: sb_dim_set){
+	  subblk_dimi = i[0];
+	  subblk_dimj = i[1];
+	  subblk_diml = i[2];
+
+	  int port_per_bank = 2;
+	  int num_port_a = subblk_diml*subblk_dimi;
+	  num_bank_a = (num_port_a%port_per_bank==0)?num_port_a/port_per_bank:num_port_a/port_per_bank+1;
+
+	  int num_port_b = subblk_diml*subblk_dimj;
+	  num_bank_b = (num_port_b%port_per_bank==0)?num_port_b/port_per_bank:num_port_b/port_per_bank+1;
+
+	  int num_port_c = 2*subblk_dimi*subblk_dimj;
+	  num_bank_c = (num_port_c%port_per_bank==0)?num_port_c/port_per_bank:num_port_c/port_per_bank+1;
+
 	  cout << "subblk dimi: " << subblk_dimi << endl;
 	  cout << "subblk dimj: " << subblk_dimj << endl;
 	  cout << "subblk diml: " << subblk_diml << endl;
@@ -346,10 +241,19 @@ void OptiMacroNode::optiPara(){
 	
 	  for(blk_dimi_sb=1; blk_dimi_sb<=subblk_m; blk_dimi_sb++){
 	    blk_dimi = blk_dimi_sb*subblk_dimi;
+	    if(MinMem(blk_dimi, 1, 1) > global_sp->total_size){
+	      break;
+	    }
 	    for(blk_dimj_sb=1; blk_dimj_sb<=subblk_n; blk_dimj_sb++){
 	      blk_dimj = blk_dimj_sb*subblk_dimj;
+	      if(MinMem(blk_dimi, blk_dimj, 1) > global_sp->total_size){
+	        break;
+	      }
 	      for(blk_diml_sb=1; blk_diml_sb<=subblk_k; blk_diml_sb++){
 		blk_diml = blk_diml_sb*subblk_diml;
+	        if(MinMem(blk_dimi, blk_dimj, blk_diml) > global_sp->total_size){
+	          break;
+	        }
 
 	        blk_m = (m%blk_dimi==0)?m/blk_dimi: m/blk_dimi+1;
 	        blk_n = (n%blk_dimj==0)?n/blk_dimj: n/blk_dimj+1;
@@ -359,15 +263,76 @@ void OptiMacroNode::optiPara(){
 		b = blk_dimj*blk_diml;
 		c = blk_dimi*blk_dimj;
                 
-		a_region = (a%num_bank_a==0)?a/num_bank_a:a/num_bank_a+1;
-		b_region = (b%num_bank_b==0)?b/num_bank_b:b/num_bank_b+1;
-		c_region = (a%num_bank_c==0)?c/num_bank_c:c/num_bank_c+1;
+		a_interval = (a%num_bank_a==0)?a/num_bank_a:a/num_bank_a+1;
+		b_interval = (b%num_bank_b==0)?b/num_bank_b:b/num_bank_b+1;
+		c_interval = (a%num_bank_c==0)?c/num_bank_c:c/num_bank_c+1;
 
-		if((a_region <= Memory::membanks[0].size)
-		    && (b_region <= Memory::membanks[0].size)
-		    && (c_region <= Memory::membanks[0].size)){
-	 
-		  unsigned long long cur_spill = spill_a()+spill_b();
+		int bank_size = Memory::membanks[0].size;
+		num_ablk_mem = bank_size/a_interval;
+		num_bblk_mem = bank_size/b_interval;
+		num_cblk_mem = bank_size/c_interval;
+
+		if((num_ablk_mem >= 1)
+		    && (num_bblk_mem >= 1)
+		    && (num_cblk_mem >= 1)){
+	 	
+		  unsigned long long cur_spill;
+		  //find the smallest num_dblk
+		  if((num_ablk_mem <= num_bblk_mem) && (num_ablk_mem <= num_cblk_mem)){
+		    LoopOrder order1;
+		    LoopOrder order2;
+		    order1.loop_ind = {"m", "k", "n"};
+		    order2.loop_ind = {"k", "m", "n"};
+		    
+		    unsigned long long spill1 = spill(order1);
+		    unsigned long long spill2 = spill(order2);
+
+		    if(spill1 <= spill2){
+		      cur_spill = spill1;
+		      loop_order = order1;
+		    }
+		    else{
+		      cur_spill = spill2;
+		      loop_order = order2;
+		    }
+		  }
+		  else if((num_bblk_mem <= num_ablk_mem) && (num_bblk_mem <= num_cblk_mem)){
+		    LoopOrder order1;
+		    LoopOrder order2;
+		    order1.loop_ind = {"n", "k", "m"};
+		    order2.loop_ind = {"k", "n", "m"};
+		    
+		    unsigned long long spill1 = spill(order1);
+		    unsigned long long spill2 = spill(order2);
+
+		    if(spill1 <= spill2){
+		      cur_spill = spill1;
+		      loop_order = order1;
+		    }
+		    else{
+		      cur_spill = spill2;
+		      loop_order = order2;
+		    }
+		  }
+		  else{
+		    LoopOrder order1;
+		    LoopOrder order2;
+		    order1.loop_ind = {"m", "n", "k"};
+		    order2.loop_ind = {"n", "m", "k"};
+		    
+		    unsigned long long spill1 = spill(order1);
+		    unsigned long long spill2 = spill(order2);
+
+		    if(spill1 <= spill2){
+		      cur_spill = spill1;
+		      loop_order = order1;
+		    }
+		    else{
+		      cur_spill = spill2;
+		      loop_order = order2;
+		    }
+		  }
+
 		  unsigned long long cur_perf = getPerf();
 
 		  if((cur_spill < num_spill)
@@ -389,6 +354,14 @@ void OptiMacroNode::optiPara(){
 		    opti_para.num_bank_a = num_bank_a;
 		    opti_para.num_bank_b = num_bank_b;
 		    opti_para.num_bank_c = num_bank_c;
+	        
+		    opti_para.blk_m = blk_m;
+		    opti_para.blk_n = blk_n;
+		    opti_para.blk_k = blk_k;
+
+		    opti_para.loop_order = loop_order;
+
+		    opti_para.num_spill = num_spill;
 		  }
 
 		}
@@ -396,20 +369,16 @@ void OptiMacroNode::optiPara(){
 	    }
 	  }
 	  cout << "num spill " << num_spill << endl;
-	}
-      }
-    }
   }
 
   opti_para.k_stage = opti_para.subblk_diml;
   opti_para.num_cb = opti_para.subblk_dimi*opti_para.subblk_dimj;
-
-  cout << "num spill " << num_spill << endl;
-  cout << "perf " << perf << endl;
+  //cout << "num spill " << num_spill << endl;
+  //cout << "perf " << perf << endl;
 }
 
 
-
+/*
 bool OptiMacroNode::ConstraintBW_buffer(int k_subblk, int m_subblk, int n_subblk){
   int port_per_bank = Memory::membanks[0].num_port;
 
@@ -458,9 +427,8 @@ unsigned long long OptiMacroNode::spill_b_buffer(){
 }
 
 void OptiMacroNode::optiPara_buffer(){
-  cout << "Memory banks: " << Memory::num_bank << endl;
-  cout << "bank 0 size: " << Memory::membanks[0].size << endl;
-
+  //cout << "Memory banks: " << Memory::num_bank << endl;
+  //cout << "bank 0 size: " << Memory::membanks[0].size << endl;
 
   num_spill = LLONG_MAX;
   perf = LLONG_MAX;
@@ -469,9 +437,9 @@ void OptiMacroNode::optiPara_buffer(){
       for(subblk_diml=1; subblk_diml<=k; subblk_diml++){
  	if(ConstraintBW_buffer(subblk_diml, subblk_dimi, subblk_dimj)){
 	  cout << endl;
-	  cout << "subblk dimi: " << subblk_dimi << endl;
-	  cout << "subblk dimj: " << subblk_dimj << endl;
-	  cout << "subblk diml: " << subblk_diml << endl;
+	  //cout << "subblk dimi: " << subblk_dimi << endl;
+	  //cout << "subblk dimj: " << subblk_dimj << endl;
+	  //cout << "subblk diml: " << subblk_diml << endl;
 
 	  int subblk_m = (m%subblk_dimi==0)?m/subblk_dimi:m/subblk_dimi+1;
 	  int subblk_n = (n%subblk_dimj==0)?n/subblk_dimj:n/subblk_dimj+1;
@@ -528,7 +496,7 @@ void OptiMacroNode::optiPara_buffer(){
 	      }
 	    }
 	  }
-	  cout << "num spill " << num_spill << endl;
+	  //cout << "num spill " << num_spill << endl;
 	}
       }
     }
@@ -537,9 +505,10 @@ void OptiMacroNode::optiPara_buffer(){
   opti_para.k_stage = opti_para.subblk_diml;
   opti_para.num_cb = opti_para.subblk_dimi*opti_para.subblk_dimj;
 
-  cout << "num spill " << num_spill << endl;
-  cout << "perf " << perf << endl;
+  //cout << "num spill " << num_spill << endl;
+  //cout << "perf " << perf << endl;
 }
+*/
 
 
 

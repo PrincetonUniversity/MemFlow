@@ -65,7 +65,7 @@ void MacroNodeTemplate::MN_mtxmul(int in_m, int in_n, int in_k, bool sche){
       ops.push_back(*out_op);
     }
   }
-  mem = shared_ptr<MemoryTrack>(new MemoryTrack(ops, opti_para));
+  mem = shared_ptr<MemoryTrack>(new MemoryTrack());
  
   cout << "input data bank allocation " << endl;
   //determine io op bank

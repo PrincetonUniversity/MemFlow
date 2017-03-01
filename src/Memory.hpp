@@ -22,8 +22,8 @@ struct DblkAddr{
 
 class MemoryTrack{
   public:
-    MemoryTrack(Parameters &in_opti_para);
-    MemoryTrack(vector<int> &ops, Parameters &in_opti_para);
+    MemoryTrack();
+    MemoryTrack(vector<int> &ops, Parameters* in_opti_para);
     ~MemoryTrack(){};
 
     void setBankSize(int bank_i, int size);
@@ -63,11 +63,17 @@ class MemoryTrack{
     int getLastCycle();
 
     void getMaxNumLive();
+  
+    void PrintInfo();
+
 
     int begin;
 
     int num_bank;
     vector<MemBank> membanks;   
+
+    int total_port;
+    int total_size;
 
     int a_base;
     int b_base;
@@ -87,20 +93,18 @@ class MemoryTrack{
 
     vector<int> max_num_live;
 
+    Parameters* opti_para;
 
-
-
-
+    void getOptiPara(Parameters* in_opti_para);
     void Slice2Dblks();
     void Slice2Dblks_buffer();
-
 
     DblkAddr getDblkAddr(string mtx_name, int blk_idx);
     array<int,2> getAddr_a_ele(DblkAddr dblk_addr, int m, int n, int i, int j);
     array<int,2> getAddr_b_ele(DblkAddr dblk_addr, int m, int n, int i, int j);
     array<int,2> getAddr_c_ele(DblkAddr dblk_addr, int m, int n, int i, int j, int in_out_latency);
 
-    Parameters& opti_para;
+    //Parameters& opti_para;
     map<string, SPRegion> sp_regions;
 
     int num_bank_a;

@@ -15,6 +15,10 @@ class DataBlock{
     DataBlock(int in_idx, string in_name, int in_dimi, int in_dimj, int in_blk_i, int in_blk_j);
     ~DataBlock(){};
 
+    int AddrIdx_a();
+    int AddrIdx_b();
+    int AddrIdx_c();
+
     void setSPAddr();
     
     int size;
