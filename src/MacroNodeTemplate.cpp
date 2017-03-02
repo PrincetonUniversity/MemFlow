@@ -51,7 +51,7 @@ void MacroNodeTemplate::MN_mtxmul(int in_m, int in_n, int in_k, bool sche){
   }
   cg.BuildTileDep();
 
-  cg.PrintTiles();
+  //cg.PrintTiles();
 
   ops = cg.ops;
   tiles = cg.tiles;
@@ -67,29 +67,29 @@ void MacroNodeTemplate::MN_mtxmul(int in_m, int in_n, int in_k, bool sche){
   }
   mem = shared_ptr<MemoryTrack>(new MemoryTrack());
  
-  cout << "input data bank allocation " << endl;
+  //cout << "input data bank allocation " << endl;
   //determine io op bank
-  cout << endl << "A" << endl;
+  //cout << endl << "A" << endl;
   for(int i=0; i<Ain.size(); i++){
     for(int j=0; j<Ain[i].size(); j++){
       array<int,2> a_addr = global_sp->getAddr_a_ele(a_blk, Ain.size(), Ain[0].size(), i, j);
-      cout << "A " << i << " " << j << ": " << a_addr[0] << " " << a_addr[1] << endl;
+      //cout << "A " << i << " " << j << ": " << a_addr[0] << " " << a_addr[1] << endl;
       ioop_addr[Ain[i][j]] = a_addr;
     }
   }
-  cout << endl << "B" << endl;
+  //cout << endl << "B" << endl;
   for(int i=0; i<Bin.size(); i++){
     for(int j=0; j<Bin[i].size(); j++){
       array<int,2> b_addr = global_sp->getAddr_b_ele(b_blk, Bin.size(), Bin[0].size(), i, j);
-      cout << "B " << i << " " << j << ": " << b_addr[0] << " " << b_addr[1] << endl;
+      //cout << "B " << i << " " << j << ": " << b_addr[0] << " " << b_addr[1] << endl;
       ioop_addr[Bin[i][j]] = b_addr;
     }
   }
-  cout << endl << "C" << endl;
+  //cout << endl << "C" << endl;
   for(int i=0; i<Cin.size(); i++){
     for(int j=0; j<Cin[i].size(); j++){
       array<int,2> c_addr = global_sp->getAddr_c_ele(c_blk, Cin.size(), Cin[0].size(), i, j, 5);
-      cout << "C " << i << " " << j << ": " << c_addr[0] << " " << c_addr[1] << endl;
+      //cout << "C " << i << " " << j << ": " << c_addr[0] << " " << c_addr[1] << endl;
       ioop_addr[Cin[i][j]] = c_addr;
     }
   }
@@ -98,7 +98,7 @@ void MacroNodeTemplate::MN_mtxmul(int in_m, int in_n, int in_k, bool sche){
       ioop_addr[Cout[i][j]] = ioop_addr[Cin[i][j]];
     }
   }
-  cout << "finish assign addr" << endl;
+  //cout << "finish assign addr" << endl;
 
   if(sche){
     TileScheduling mn_sche(*this, MN);

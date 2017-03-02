@@ -76,6 +76,7 @@ int main(int argc, char* argv[]){
   global_sp->Slice2Dblks();
   global_sp->PrintInfo();
 
+  cout << endl << "Generating macro nodes..." << endl;
   CGScheduling mn_sche;
   mn_sche.MacroNodeGen();
   mn_sche.PrintPerf();

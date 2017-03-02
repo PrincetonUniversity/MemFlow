@@ -23,7 +23,6 @@ struct DblkAddr{
 class MemoryTrack{
   public:
     MemoryTrack();
-    MemoryTrack(vector<int> &ops, Parameters* in_opti_para);
     ~MemoryTrack(){};
 
     void setBankSize(int bank_i, int size);

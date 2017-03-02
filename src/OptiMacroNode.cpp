@@ -81,7 +81,7 @@ int OptiMacroNode::MinMem(int blk_dimi, int blk_dimj, int blk_diml){
     return (blk_dimi*blk_diml+blk_dimj*blk_diml+blk_dimi*blk_dimj);
 }
 
-int OptiMacroNode::MinBank(int k_subblk, int m_subblk, int n_subblk){
+int OptiMacroNode::MinBank(int m_subblk, int n_subblk, int k_subblk){
   int port_per_bank = Memory::membanks[0].num_port;
 
   int num_port_a = k_subblk*m_subblk;
@@ -112,10 +112,7 @@ void OptiMacroNode::genSubblkSet(){
         break;
       }
       for(subblk_diml=1; subblk_diml<=k; subblk_diml++){
-        cout << "subblk_dim: " << subblk_dimi << " " << subblk_dimj << " " << subblk_diml << endl;
 	int min_bank = MinBank(subblk_dimi, subblk_dimj, subblk_diml);
-	cout << "min bank: " << min_bank << endl;
-	cout << "num_port_used " << num_port_used << endl;
 	if(min_bank < Memory::num_bank){
 	  int min_port = MinPort(subblk_dimi, subblk_dimj, subblk_diml);
 	  if(min_port >= num_port_used){
@@ -176,7 +173,9 @@ unsigned long long OptiMacroNode::spill_type1(int blk_size, int num_dblk_mem, in
     spill = 0;
   }
   else{
-    spill = blk_size*(num_dblk_need+1-num_dblk_mem)*(num_reuse-1)*iterate;
+    spill = blk_size*(num_dblk_need+1-num_dblk_mem);
+    spill = spill*(num_reuse-1);
+    spill = spill*iterate;
   }
   return spill;
 }
@@ -184,11 +183,13 @@ unsigned long long OptiMacroNode::spill_type1(int blk_size, int num_dblk_mem, in
 unsigned long long OptiMacroNode::spill_type2(int blk_size, int num_dblk_mem, int num_dblk_need, int num_reuse){
   unsigned long long spill;
 
+  
   if(num_dblk_mem >= num_dblk_need){
     spill = 0;
   }
   else{
-    spill = blk_size*(num_dblk_need+1-num_dblk_mem)*(num_reuse-1);
+    spill = blk_size*(num_dblk_need+1-num_dblk_mem);
+    spill = spill*(num_reuse-1);
   }
   return spill;
 }
@@ -207,8 +208,8 @@ unsigned long long OptiMacroNode::getPerf(){
 }
 
 void OptiMacroNode::optiPara(){
-  num_spill = LLONG_MAX;
-  perf = LLONG_MAX;
+  num_spill = ULLONG_MAX;
+  perf = ULLONG_MAX;
   
   genSubblkSet();
   //cout << "subblk dim sets: " << endl;
@@ -230,10 +231,6 @@ void OptiMacroNode::optiPara(){
 
 	  int num_port_c = 2*subblk_dimi*subblk_dimj;
 	  num_bank_c = (num_port_c%port_per_bank==0)?num_port_c/port_per_bank:num_port_c/port_per_bank+1;
-
-	  cout << "subblk dimi: " << subblk_dimi << endl;
-	  cout << "subblk dimj: " << subblk_dimj << endl;
-	  cout << "subblk diml: " << subblk_diml << endl;
 
 	  int subblk_m = (m%subblk_dimi==0)?m/subblk_dimi:m/subblk_dimi+1;
 	  int subblk_n = (n%subblk_dimj==0)?n/subblk_dimj:n/subblk_dimj+1;
@@ -368,7 +365,6 @@ void OptiMacroNode::optiPara(){
 	      }
 	    }
 	  }
-	  cout << "num spill " << num_spill << endl;
   }
 
   opti_para.k_stage = opti_para.subblk_diml;

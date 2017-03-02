@@ -33,7 +33,6 @@ int DataBlock::AddrIdx_a(){
   else{
     idx = blk_j;
   }
-  cout << idx << endl;
   return idx;
 }
 
@@ -54,7 +53,6 @@ int DataBlock::AddrIdx_b(){
   else{
     idx = blk_j;
   }
-  cout << idx << endl;
   return idx;
 }
 
@@ -75,7 +73,6 @@ int DataBlock::AddrIdx_c(){
   else{
     idx = blk_j*opti_para.blk_n+blk_i;
   }
-  cout << idx << endl;
   return idx;
 }
 

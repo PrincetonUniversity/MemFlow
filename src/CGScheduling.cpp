@@ -34,11 +34,11 @@ void CGScheduling::genDblks(string mtx_name, int m, int n, int blk_dimi, int blk
 
 void CGScheduling::LoopIteration(int blk_i, int blk_j, int blk_l){
     //new mn
-    cout << endl;
-    cout << "blk i " << blk_i << endl;
-    cout << "blk j " << blk_j << endl;
-    cout << "blk l " << blk_l << endl;
-    cout << "mn " << mns.size() << endl;
+    //cout << endl;
+    //cout << "blk i " << blk_i << endl;
+    //cout << "blk j " << blk_j << endl;
+    //cout << "blk l " << blk_l << endl;
+    //cout << "mn " << mns.size() << endl;
     MacroNode mn(mn_temp, mns.size());
 
     LoadDblk ld;
@@ -49,8 +49,8 @@ void CGScheduling::LoopIteration(int blk_i, int blk_j, int blk_l){
     int first_fetch_ind = (opti_para.loop_order.loop_ind[2] == "k")?blk_j:blk_l;
     if((dblks[ablk_idx].AddrIdx_a() > mem.sp_regions["A"].num_blks-1) || (first_fetch_ind == 0)){
       ld.dblk_idx.push_back(ablk_idx);
-      cout << "load a block" << endl;
-      num_dram_access += dblks[ablk_idx].size;
+      //cout << "load a block" << endl;
+      num_dram_read += dblks[ablk_idx].size;
     }
     mn.a_sp_addr = dblks[ablk_idx].sp_addr;
     mn.pred_dblks.push_back(ablk_idx);
@@ -60,8 +60,8 @@ void CGScheduling::LoopIteration(int blk_i, int blk_j, int blk_l){
     first_fetch_ind = (opti_para.loop_order.loop_ind[2] == "k")?blk_i:blk_l;
     if((dblks[bblk_idx].AddrIdx_b() > mem.sp_regions["B"].num_blks-1) || (first_fetch_ind == 0)){
       ld.dblk_idx.push_back(bblk_idx);
-      cout << "load b block" << endl;
-      num_dram_access += dblks[bblk_idx].size;
+      //cout << "load b block" << endl;
+      num_dram_read += dblks[bblk_idx].size;
     }
     mn.b_sp_addr = dblks[bblk_idx].sp_addr;
     mn.pred_dblks.push_back(bblk_idx);
@@ -71,22 +71,22 @@ void CGScheduling::LoopIteration(int blk_i, int blk_j, int blk_l){
     first_fetch_ind = (opti_para.loop_order.loop_ind[2] == "m")?blk_j:blk_i;
     if((dblks[cblk_idx].AddrIdx_c() > mem.sp_regions["C"].num_blks-1) || (first_fetch_ind == 0)){
       ld.dblk_idx.push_back(cblk_idx);
-      cout << "load c block" << endl;
-      num_dram_access += dblks[cblk_idx].size;
+      //cout << "load c block" << endl;
+      num_dram_read += dblks[cblk_idx].size;
     }
     mn.c_sp_addr = dblks[cblk_idx].sp_addr;
     mn.pred_dblks.push_back(cblk_idx);
 
     //mn computation
     mns.push_back(mn);
-    cout << "executing mn" << endl;
+    //cout << "executing mn" << endl;
     num_compute_cycles += mn.mn_temp->cycle_length;
     
     //store cblk if needed
     if((dblks[cblk_idx].AddrIdx_c() > mem.sp_regions["C"].num_blks-1) || (blk_l == blk_k-1)){
       sd.dblk_idx.push_back(cblk_idx);
-      cout << "store c block" << endl;
-      num_dram_access += dblks[cblk_idx].size;
+      //cout << "store c block" << endl;
+      num_dram_write += dblks[cblk_idx].size;
     }
     mn.post_dblks.push_back(cblk_idx);
 
@@ -108,12 +108,13 @@ void CGScheduling::MacroNodeGen(){
   mn_temp->MN_mtxmul(opti_para.blk_dimi, opti_para.blk_dimj, opti_para.blk_diml, true);
   mn_temps.push_back(mn_temp);
 
-  cout << "dblks base a " << dblks_base_a << endl; 
-  cout << "dblks base b " << dblks_base_b << endl; 
-  cout << "dblks base c " << dblks_base_c << endl; 
+  //cout << "dblks base a " << dblks_base_a << endl; 
+  //cout << "dblks base b " << dblks_base_b << endl; 
+  //cout << "dblks base c " << dblks_base_c << endl; 
 
   num_compute_cycles = 0;
-  num_dram_access = 0;
+  num_dram_read = 0;
+  num_dram_write = 0;
   blk_m = opti_para.m_ex/opti_para.blk_dimi;
   blk_n = opti_para.n_ex/opti_para.blk_dimj;
   blk_k = opti_para.k_ex/opti_para.blk_diml;
@@ -172,6 +173,9 @@ void CGScheduling::MacroNodeGen(){
       }
     }
   }
+
+
+  //cout << "num of dblk write " << num_dblk_write << endl;
 }
 
 void CGScheduling::MacroNodeGen_buffer(){
@@ -188,10 +192,6 @@ void CGScheduling::MacroNodeGen_buffer(){
   mn_temp->MN_mtxmul(opti_para.blk_dimi, opti_para.blk_dimj, opti_para.blk_diml, true);
   mn_temps.push_back(mn_temp);
 
-  cout << "dblks base a " << dblks_base_a << endl; 
-  cout << "dblks base b " << dblks_base_b << endl; 
-  cout << "dblks base c " << dblks_base_c << endl; 
-
   num_compute_cycles = 0;
   int blk_m = opti_para.m_ex/opti_para.blk_dimi;
   int blk_n = opti_para.n_ex/opti_para.blk_dimj;
@@ -200,7 +200,7 @@ void CGScheduling::MacroNodeGen_buffer(){
     for(int blk_j=0; blk_j<blk_n; blk_j++){
       for(int blk_l=0; blk_l<blk_k; blk_l++){
         //new mn
-	cout << "mn " << mns.size() << endl;
+	//cout << "mn " << mns.size() << endl;
 	MacroNode mn(mn_temp, mns.size());
 
 	LoadDblk ld;
@@ -209,7 +209,7 @@ void CGScheduling::MacroNodeGen_buffer(){
 	int ablk_idx = dblks_base_a+blk_i*blk_k+blk_l;
 	if((blk_l >= mem.num_region_a-1) || (blk_j == 0)){
 	  ld.dblk_idx.push_back(ablk_idx);
-	  cout << "load a block" << endl;
+	  //cout << "load a block" << endl;
 	}
  	mn.a_sp_addr = dblks[ablk_idx].sp_addr;
 	mn.pred_dblks.push_back(ablk_idx);
@@ -218,7 +218,7 @@ void CGScheduling::MacroNodeGen_buffer(){
 	int bblk_idx = dblks_base_b+blk_l*blk_n+blk_j;
 	if((blk_j*blk_k+blk_l >= mem.num_region_b-1) || (blk_i == 0)){
 	  ld.dblk_idx.push_back(bblk_idx);
-	  cout << "load b block" << endl;
+	  //cout << "load b block" << endl;
 	}
 	mn.b_sp_addr = dblks[bblk_idx].sp_addr;
 	mn.pred_dblks.push_back(bblk_idx);
@@ -227,20 +227,20 @@ void CGScheduling::MacroNodeGen_buffer(){
 	int cblk_idx = dblks_base_c+blk_i*blk_n+blk_j;
 	if(blk_l == 0){
 	  ld.dblk_idx.push_back(cblk_idx);
-	  cout << "load c block" << endl;
+	  //cout << "load c block" << endl;
 	}
 	mn.c_sp_addr = dblks[cblk_idx].sp_addr;
 	mn.pred_dblks.push_back(cblk_idx);
 
 	//mn computation
 	mns.push_back(mn);
-	cout << "executing mn" << endl;
+	//cout << "executing mn" << endl;
 	num_compute_cycles += mn.mn_temp->cycle_length;
 	
 	//store cblk if needed
 	if(blk_l == blk_k-1){
 	  sd.dblk_idx.push_back(cblk_idx);
-	  cout << "store c block" << endl;
+	  //cout << "store c block" << endl;
 	}
 	mn.post_dblks.push_back(cblk_idx);
 
@@ -253,8 +253,10 @@ void CGScheduling::MacroNodeGen_buffer(){
 }
 
 void CGScheduling::PrintPerf(){
-  cout << "number of cycles: " << num_compute_cycles << endl;
-  cout << "number of dram access: " << num_dram_access << endl;
+  cout << endl;
+  cout << "Number of cycles: " << num_compute_cycles << endl;
+  cout << "Number of dram read: " << num_dram_read << endl;
+  cout << "Number of dram write: " << num_dram_write << endl;
  // mem->getMaxNumLive();
 }
 

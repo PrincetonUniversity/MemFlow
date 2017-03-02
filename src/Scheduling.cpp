@@ -56,16 +56,14 @@ int TileScheduling::Executing_cbs(){
   int cycle = -1;
   while(!finished){
     cycle++;
-    cout << endl << "cycle " << cycle << endl;
+    //cout << endl << "cycle " << cycle << endl;
 
     vector<bool> finish_stamp(cb_events.size(), false);
     for(int i=0; i<cb_events.size(); i++){
-      cout << endl << "cb " << i << endl;
+      //cout << endl << "cb " << i << endl;
       for(int j=cb_events[i].num_stage-1; j>=0; j--){
         //take new event
-	if(i == 0){
-	  cout << "stage " << j << endl;
-	}
+	//cout << "stage " << j << endl;
 	cb_events[i].stage_events[j].stall = (!cb_events[i].stage_events[j].ops.empty());
 	if((j<(cb_events[i].num_stage-1)) && cb_events[i].stage_events[j+1].stall){
 	  cb_events[i].stage_events[j].stall = true;
@@ -87,14 +85,14 @@ int TileScheduling::Executing_cbs(){
 	    }
 	  }
 	}
-
+	
 	//read / write ops
 	vector<int> finished_ops;
 	for(auto op=cb_events[i].stage_events[j].ops.begin(); op!=cb_events[i].stage_events[j].ops.end(); op++){
-	  if(i == 0){
-	    cout << "op " << *op << endl;
-	  }
+	  //cout << "op " << *op << endl;
 	  int bank = macro.ioop_addr[*op][0];
+	  //cout << "bank " << bank << endl;
+	  //cout << "number of bank: " << Memory::num_bank << endl;
 	  macro.mem->ExtendLength(cycle+1);
 	  if(op_read_cycles[*op].find(cycle) == op_read_cycles[*op].end()){
 	    if(macro.mem->CanPortInc(bank, cycle)){
@@ -113,12 +111,10 @@ int TileScheduling::Executing_cbs(){
 	  cb_events[i].stage_events[j].ops.erase(op);
 	}
 
-	if(i == 0){
-	  cout << "op left" << endl;
-	  for(auto op=cb_events[i].stage_events[j].ops.begin(); op!=cb_events[i].stage_events[j].ops.end(); op++){
-	    cout << "op " << *op << endl;
-	  }
-	}
+	//cout << "op left" << endl;
+	//for(auto op=cb_events[i].stage_events[j].ops.begin(); op!=cb_events[i].stage_events[j].ops.end(); op++){
+	//    cout << "op " << *op << endl;
+	//}
 
 	if(!finished_ops.empty() && cb_events[i].stage_events[j].ops.empty()){
 	  cb_events[i].stage_events[j].produced_out = true;
@@ -130,11 +126,11 @@ int TileScheduling::Executing_cbs(){
 	  }
 	}
       }
-      cout << "finish this cb" << endl;
+      //cout << "finish this cb" << endl;
 
     }
 
-    cout << "finish this cycle " << endl;
+    //cout << "finish this cycle " << endl;
     finished = true;
     for(int i=0; i<cb_events.size(); i++){
       finished = finished && finish_stamp[i];
@@ -178,10 +174,10 @@ void TileScheduling::Scheduling_pipe(){
   for(int subblk_l=0; subblk_l<subblk_k; subblk_l++){
     for(int subblk_i=0; subblk_i<subblk_m; subblk_i++){
       for(int subblk_j=0; subblk_j<subblk_n; subblk_j++){
-	cout << endl;
-	cout << "subblk i " << subblk_i << endl;
-	cout << "subblk j " << subblk_j << endl;
-	cout << "subblk l " << subblk_l << endl;
+	//cout << endl;
+	//cout << "subblk i " << subblk_i << endl;
+	//cout << "subblk j " << subblk_j << endl;
+	//cout << "subblk l " << subblk_l << endl;
 
         //read out all input data
 	//allocate all cbs
@@ -190,7 +186,7 @@ void TileScheduling::Scheduling_pipe(){
 	  for(int j=(subblk_j)*opti_para.subblk_dimj; j<(subblk_j+1)*opti_para.subblk_dimj; j++){
 	      //tile idx
 	      int tile = i*(subblk_k*opti_para.blk_dimj)+j*subblk_k+subblk_l;
-	      cout << "tile " << tile << endl;
+	      //cout << "tile " << tile << endl;
 
 	      //cb to use cb_idx
 	      map<int, set<int>> sorted_livein_ops;
@@ -207,11 +203,11 @@ void TileScheduling::Scheduling_pipe(){
 	      }
 	      
 	      for(auto &livein: sorted_livein_ops){
-		cout << livein.first << ":";
-		for(auto &i: livein.second){
-		  cout << i << ",";
-		}
-		cout << endl;
+		//cout << livein.first << ":";
+		//for(auto &i: livein.second){
+		  //cout << i << ",";
+		//}
+		//cout << endl;
 	        cb_events[cb_idx].stage_events[livein.first].Enqueue(livein.second);
 	      }
 		
