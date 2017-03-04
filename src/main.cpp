@@ -15,6 +15,7 @@
 #include "Setting.hpp"
 #include "ProcessConfig.hpp"
 #include "Memory.hpp"
+#include "../DRAMSim2/DRAMSim.h"
 
 using namespace std;
 
@@ -58,9 +59,13 @@ int main(int argc, char* argv[]){
   //process config file
   readConfig();
 
+  //SRAM
   MemoryTrack mem;
   global_sp = &mem;
   
+  //DRAM
+  DRAMSim::MultiChannelMemorySystem *dram = DRAMSim::getMemorySystemInstance("ini/DDR2_micron_16M_8b_x8_sg3E.ini", "system.ini.example","./DRAMSim2/"," ",16384);
+
   //Parameters opti_para;
   OptiMacroNode opti(m, n, k, opti_para);
   opti.optiPara();
