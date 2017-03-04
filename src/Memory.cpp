@@ -308,9 +308,9 @@ array<int,2> MemoryTrack::getAddr_a_ele(DblkAddr dblk_addr, int m, int n, int i,
   int j_insubblk = (blk_i*n+j)%opti_para->subblk_diml;
   int idx_insubblk = j_insubblk*opti_para->subblk_dimi + i_insubblk;
   //bank
-  cout << "dblk region " << dblk_addr.region << endl;
-  cout << "start bank " << sp_regions[dblk_addr.region].start_bank << endl;
-  cout << "start bank " << sp_regions["A"].start_bank << endl;
+  //cout << "dblk region " << dblk_addr.region << endl;
+  //cout << "start bank " << sp_regions[dblk_addr.region].start_bank << endl;
+  //cout << "start bank " << sp_regions["A"].start_bank << endl;
   addr[0] = sp_regions[dblk_addr.region].start_bank+idx_insubblk/2;
   addr[1] = addr_offset+idx_insubblk%2;
 
@@ -329,9 +329,9 @@ array<int,2> MemoryTrack::getAddr_b_ele(DblkAddr dblk_addr, int m, int n, int i,
   int i_insubblk = i%opti_para->subblk_diml;
   int j_insubblk = j%opti_para->subblk_dimj;
   int idx_insubblk = i_insubblk*opti_para->subblk_dimj+j_insubblk;
-  cout << "dblk region " << dblk_addr.region << endl;
-  cout << "start bank " << sp_regions[dblk_addr.region].start_bank << endl;
-  cout << "start bank " << sp_regions["B"].start_bank << endl;
+  //cout << "dblk region " << dblk_addr.region << endl;
+  //cout << "start bank " << sp_regions[dblk_addr.region].start_bank << endl;
+  //cout << "start bank " << sp_regions["B"].start_bank << endl;
   addr[0] = sp_regions[dblk_addr.region].start_bank+idx_insubblk/2;
   addr[1] = addr_offset+idx_insubblk%2;
   return addr;

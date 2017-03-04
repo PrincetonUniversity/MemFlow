@@ -42,9 +42,12 @@ class CGScheduling{
 
     MemoryTrack& mem;
 
-    int num_compute_cycles;
-    int num_spills;
-    int num_dram_access;
+    unsigned long long num_compute_cycles;
+    unsigned long long num_spills;
+    unsigned long long num_dram_read;
+    unsigned long long num_dram_write;
+   
+    int num_dblk_write;
 
     int load_latency;
     int store_latency;

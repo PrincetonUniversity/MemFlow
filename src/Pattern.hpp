@@ -154,6 +154,7 @@ class MtxMul: public Pattern{
 class MtxMulAdd: public Pattern{
   public:
     MtxMulAdd(vector<Operation> &ops, string &in_cp, const vector<vector<int>> &in_mtx1, const vector<vector<int>> &in_mtx2, const vector<vector<int>> &in_mtx3, vector<vector<int>> &out_mtx);
+    void TileGen(vector<Tile> &tiles, vector<Operation> &ops);
 };
 
 class Root_s: public Pattern{

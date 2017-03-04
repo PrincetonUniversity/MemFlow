@@ -52,7 +52,7 @@ void Pattern::PrintOps(vector<Operation> &ops){
 
 // use cb defined in pattern to tile up the pattern
 void Pattern::TileGen(vector<Tile> &tiles, vector<Operation> &ops){
-
+  cout << "using this tile gen" << endl;
   //pattern unit wait to be added to tiles
   list<PatternUnit> wait;
 
@@ -1421,8 +1421,51 @@ MtxMulAdd::MtxMulAdd(vector<Operation> &ops, string &in_cp, const vector<vector<
   name = "matrix_multiplication_addition";
 
   cb = ComputeBlockLib::cbs["mul_acc"];	
+  
+  m = in_mtx1.size();
+  k = in_mtx1[0].size();
+  n = in_mtx2[0].size();
 }
 
+void MtxMulAdd::TileGen(vector<Tile> &tiles, vector<Operation> &ops){
+  //initialize tiles
+  int num_tile_row = ((m*n)%cb->width == 0)? (m*n)/cb->width: (m*n)/cb->width+1;
+  int num_tile_col = (k%cb->max_depth == 0)? k/cb->max_depth: k/cb->max_depth+1;
+
+  int tile_idx_start = tiles.size();
+  for(int i=0; i<num_tile_col; i++){
+    for(int j=0; j<num_tile_row; j++){
+      Tile tile(cb);
+      if((k%cb->max_depth != 0) && (i == num_tile_col-1)){
+	int cb_real_depth = k%cb->max_depth;
+	tile.latency = cb->GetRealLatency(cb_real_depth);
+      }
+      else{
+	tile.latency = cb->latency;
+      }
+      tile.pattern_name = name;
+      tile.cpsection_name = cp;
+      tiles.push_back(tile);
+      tiles_idx.push_back(tiles.size()-1);
+    }
+  }
+
+  for(vector<PatternUnit>::iterator pu=pus.begin(); pu!=pus.end(); pu++){
+    int idx = pu-pus.begin();
+    int col_idx = idx/k;
+    int row_idx = idx-col_idx*k;
+    int tile_idx = tile_idx_start + int(row_idx/cb->max_depth)*num_tile_row + int(col_idx/cb->width);
+    //add pu to the tiles[tile_idx];
+    for(vector<int>::iterator op=pu->ops.begin(); op!=pu->ops.end(); op++){
+      tiles[tile_idx].ops.push_back(*op);
+      ops[*op].tile = tile_idx;
+    }
+  }
+
+  tile_m = m;
+  tile_n = n;
+  tile_k = (k%cb->max_depth==0)?k/cb->max_depth:k/cb->max_depth+1;
+}
 
 // Calculate the sum of each column
 ColSum::ColSum(vector<Operation> &ops, string &in_cp, const vector<vector<int>> &in_mtx, vector<int> &out_vec)

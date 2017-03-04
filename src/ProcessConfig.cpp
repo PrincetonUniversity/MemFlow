@@ -73,7 +73,6 @@ void readConfig(){
     }
     */
 
-
     getline(config, line);
     string start_mem = "Memory";
 
@@ -82,24 +81,22 @@ void readConfig(){
     }
 
     getline(config, line);
-    int count = 0;
-    while(!line.empty()){
-      stringstream ss(line);
+    
+    stringstream ss(line);
+    string token;
+    getline(ss, token, ',');
+    Memory::num_bank = atoi(token.c_str());
 
-      string token;
-      getline(ss, token, ',');
-      int size = atoi(token.c_str());
+    getline(ss, token, ',');
+    int size = atoi(token.c_str())/4;
 
-      getline(ss, token, ',');
-      int port = atoi(token.c_str());
+    getline(ss, token, ',');
+    int port = atoi(token.c_str());
 
+    for(int i=0; i<Memory::num_bank; i++){
       MemBank m = {size, port};
       Memory::membanks.push_back(m);
-
-      getline(config, line);
-      count++; 
     }
-    Memory::num_bank = count;
   }
   else cout << "Unable to open file config_hw" << endl;
 }
