@@ -80,4 +80,13 @@ struct Operation{
 	int tile = -1;
 };
 
+
+enum DblkSPAddrIdx{
+  ZERO_IDX,
+  ROW_IDX,
+  COL_IDX,
+  ROWMAJOR_IDX,
+  COLMAJOR_IDX
+};
+
 #endif

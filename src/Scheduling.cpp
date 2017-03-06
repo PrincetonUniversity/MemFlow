@@ -60,10 +60,8 @@ int TileScheduling::Executing_cbs(){
 
     vector<bool> finish_stamp(cb_events.size(), false);
     for(int i=0; i<cb_events.size(); i++){
-      //cout << endl << "cb " << i << endl;
       for(int j=cb_events[i].num_stage-1; j>=0; j--){
         //take new event
-	//cout << "stage " << j << endl;
 	cb_events[i].stage_events[j].stall = (!cb_events[i].stage_events[j].ops.empty());
 	if((j<(cb_events[i].num_stage-1)) && cb_events[i].stage_events[j+1].stall){
 	  cb_events[i].stage_events[j].stall = true;
@@ -89,10 +87,7 @@ int TileScheduling::Executing_cbs(){
 	//read / write ops
 	vector<int> finished_ops;
 	for(auto op=cb_events[i].stage_events[j].ops.begin(); op!=cb_events[i].stage_events[j].ops.end(); op++){
-	  //cout << "op " << *op << endl;
 	  int bank = macro.ioop_addr[*op][0];
-	  //cout << "bank " << bank << endl;
-	  //cout << "number of bank: " << Memory::num_bank << endl;
 	  macro.mem->ExtendLength(cycle+1);
 	  if(op_read_cycles[*op].find(cycle) == op_read_cycles[*op].end()){
 	    if(macro.mem->CanPortInc(bank, cycle)){
@@ -175,10 +170,6 @@ void TileScheduling::Scheduling_pipe(){
     for(int subblk_i=0; subblk_i<subblk_m; subblk_i++){
       for(int subblk_j=0; subblk_j<subblk_n; subblk_j++){
 	//cout << endl;
-	//cout << "subblk i " << subblk_i << endl;
-	//cout << "subblk j " << subblk_j << endl;
-	//cout << "subblk l " << subblk_l << endl;
-
         //read out all input data
 	//allocate all cbs
 	int cb_idx = 0;

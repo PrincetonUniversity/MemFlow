@@ -18,6 +18,8 @@ struct SPRegion{
 struct DblkAddr{
   string region;
   int base;
+  //DblkAddr(){};
+  //DblkAddr(string in_region, int in_base):region(in_region),base(in_base){};
 };
 
 class MemoryTrack{

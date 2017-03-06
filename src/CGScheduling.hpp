@@ -33,15 +33,15 @@ class CGScheduling{
 
     MacroNodeTemplate* mn_temp;
 
+    shared_ptr<LoadStoreDblk> load_store;
+
     //partition computation graph into macronodes
     vector<MacroNode> mns;
     vector<DataBlock> dblks;
 
-    vector<LoadDblk> load;
-    vector<StoreDblk> store;
-
     MemoryTrack& mem;
 
+    unsigned long long cycle;
     unsigned long long num_compute_cycles;
     unsigned long long num_spills;
     unsigned long long num_dram_read;

@@ -15,7 +15,8 @@
 #include "Setting.hpp"
 #include "ProcessConfig.hpp"
 #include "Memory.hpp"
-#include "../DRAMSim2/DRAMSim.h"
+#include "Data.hpp"
+#include "./../DRAMSim2/DRAMSim.h"
 
 using namespace std;
 
@@ -34,6 +35,9 @@ vector<MacroNodeTemplate*> mn_temps;
 Parameters opti_para;
 MemoryTrack* global_sp;
 
+DRAMSim::MultiChannelMemorySystem* dram;
+
+map<string, DataArray*> data_arrays;
 
 int main(int argc, char* argv[]){
 
@@ -64,13 +68,34 @@ int main(int argc, char* argv[]){
   global_sp = &mem;
   
   //DRAM
-  DRAMSim::MultiChannelMemorySystem *dram = DRAMSim::getMemorySystemInstance("ini/DDR2_micron_16M_8b_x8_sg3E.ini", "system.ini.example","./DRAMSim2/"," ",16384);
+  dram = DRAMSim::getMemorySystemInstance("ini/DDR2_micron_16M_8b_x8_sg3E.ini", "system.ini.example","./DRAMSim2/"," ",16384);
 
   //Parameters opti_para;
   OptiMacroNode opti(m, n, k, opti_para);
   opti.optiPara();
-  
   opti_para.PrintInfo();
+  
+  DataArray *a = new DataArray("A",opti_para.m_ex,opti_para.k_ex);
+  data_arrays["A"] = a;
+  DataArray *b = new DataArray("B",opti_para.k_ex,opti_para.n_ex);
+  data_arrays["B"] = b;
+  DataArray *c = new DataArray("C",opti_para.m_ex,opti_para.n_ex);
+  data_arrays["C"] = c;
+
+  //set dram addr
+  data_arrays["A"]->setAddrMappingMode(opti_para.subblk_dimi, opti_para.blk_diml, true, true);
+  data_arrays["A"]->setStartAddr(0);
+  data_arrays["B"]->setAddrMappingMode(opti_para.blk_diml, opti_para.subblk_dimj, false, false);
+  data_arrays["B"]->setStartAddr(data_arrays["A"]->size);
+  data_arrays["C"]->setAddrMappingMode(opti_para.blk_dimi, opti_para.subblk_dimj, false, true);
+  data_arrays["C"]->setStartAddr(data_arrays["A"]->size+data_arrays["B"]->size);
+
+  opti_para.loop_order.setDblkSPAddrIdx();
+
+  //generate dblks
+  data_arrays["A"]->genDblks(opti_para.blk_dimi, opti_para.blk_diml);
+  data_arrays["B"]->genDblks(opti_para.blk_diml, opti_para.blk_dimj);
+  data_arrays["C"]->genDblks(opti_para.blk_dimi, opti_para.blk_dimj);
 
   ComputeBlockLib::cbs["store"] = new CB_Store("store",1,1);
   ComputeBlockLib::cbs["load"] = new CB_Load("load",2,1);

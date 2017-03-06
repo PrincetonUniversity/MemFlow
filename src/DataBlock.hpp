@@ -5,22 +5,25 @@
 #include <set>
 #include <string>
 
-#include "Setting.hpp"
 #include "Memory.hpp"
 
 using namespace std;
 
 class DataBlock{
   public:
+    DataBlock(string in_name, int in_dimi, int in_dimj);
     DataBlock(int in_idx, string in_name, int in_dimi, int in_dimj, int in_blk_i, int in_blk_j);
     ~DataBlock(){};
 
-    int AddrIdx_a();
-    int AddrIdx_b();
-    int AddrIdx_c();
-
+    int AddrIdx();
     void setSPAddr();
+    void setSPAddr(DblkAddr& in_sp_addr);
     
+    array<int,2> getElementSPAddr_mtxmul_a(int i, int j);
+    array<int,2> getElementSPAddr_mtxmul_b(int i, int j);
+    array<int,2> getElementSPAddr_mtxmul_c(int i, int j);
+    array<int,2> getElementSPAddr(int i, int j);
+
     int size;
     vector<int> ops;
     vector<int> live_cycle;

@@ -25,6 +25,7 @@ MemoryTrack::MemoryTrack(){
     total_size += Memory::membanks[i].size;
   }
   
+  begin = 0;
 }
 
 void MemoryTrack::setBankSize(int bank_i, int size){
@@ -295,7 +296,7 @@ void MemoryTrack::Slice2Dblks_buffer(){
   cout << "c1 mem dblk num: " << sp_regions["C1"].num_blks << endl;
 }
 
-
+/*
 array<int,2> MemoryTrack::getAddr_a_ele(DblkAddr dblk_addr, int m, int n, int i, int j){
   array<int,2> addr;
   
@@ -367,6 +368,7 @@ array<int,2> MemoryTrack::getAddr_c_ele(DblkAddr dblk_addr, int m, int n, int i,
   addr[1] = dblk_addr.base+blk_idx;
   return addr;
 }
+*/
 
 DblkAddr MemoryTrack::getDblkAddr(string mtx_name, int blk_idx){
   DblkAddr da;

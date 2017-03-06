@@ -3,29 +3,35 @@
 
 #include<vector>
 #include<string>
+#include<queue>
 
+#include "DataBlock.hpp"
 #include "Tile.hpp"
 #include "MacroNodeTemplate.hpp"
 #include "Memory.hpp"
+#include "DRAMAccess.hpp"
 
 using namespace std;
 
-class LoadDblk{
+class LoadStoreDblk{
   public:
-    LoadDblk(){};
-    ~LoadDblk(){};
+    LoadStoreDblk();
+    ~LoadStoreDblk();
+    void genTransactions(DataBlock* dblk, queue<uint64_t>& trans_addr);
+    int loadDblk(DataBlock* dblk);
+    int storeDblk(DataBlock* dblk);
+    void setIO();
+    void freeIO();
 
-    int getLatency();
-    vector<int> dblk_idx;
-};
+    Callback_t* read_cb;
+    Callback_t* write_cb;
+    TransactionReceiver transactionReceiver;
 
-class StoreDblk{
-  public:
-    StoreDblk(){};
-    ~StoreDblk(){};
+    string matrix_name;
+    int blk_i;
+    int blk_j;
 
-    int getLatency();
-    vector<int> dblk_idx;
+    DblkAddr dblk_addr;
 };
 
 class MacroNode{

@@ -2,11 +2,39 @@
 #define OPTIMACRONODE
 
 #include<iostream>
+#include "Util.hpp"
 
 using namespace std;
 
-struct LoopOrder{
-  array<string,3> loop_ind;
+class OptiMacroNode;
+
+class LoopOrder{
+  public:
+  LoopOrder(){};
+  LoopOrder(string loop1, string loop2, string loop3);
+  ~LoopOrder(){};
+  void setupLoopOrder(OptiMacroNode* opti_mn);
+  void setDblkSPAddrIdx();
+
+  //type 1 spill
+  string matrix_spilltype1;
+  int num_dblk1_mem;
+  int dblk1_size;
+  int num_dblk1_need;
+  int num_reuse1;
+  int num_iterate;
+  DblkSPAddrIdx idx_mode1;
+
+  //type 2 spill
+  string matrix_spilltype2;
+  int num_dblk2_mem;
+  int dblk2_size;
+  int num_dblk2_need;
+  int num_reuse2;
+  DblkSPAddrIdx idx_mode2;
+
+  string matrix_nospill;
+  array<string,3> loop_idc;
 };
 
 class Parameters{

@@ -110,4 +110,9 @@ void freeConfig(){
     delete it->second;
   }
 
+  delete dram;
+
+  for(auto it=data_arrays.begin(); it!=data_arrays.end(); it++){
+    delete it->second;
+  }
 }

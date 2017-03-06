@@ -8,6 +8,7 @@
 #include "Tile.hpp"
 #include "Hardware.hpp"
 #include "Memory.hpp"
+#include "DataBlock.hpp"
 
 using namespace std;
 
@@ -96,9 +97,9 @@ class MacroNodeTemplate{
     map<int,array<int,2>> ioop_addr;
     //key: io op, value: mem addr
 
-    DblkAddr a_blk;
-    DblkAddr b_blk;
-    DblkAddr c_blk;
+    shared_ptr<DataBlock> ablk;
+    shared_ptr<DataBlock> bblk;
+    shared_ptr<DataBlock> cblk;
 
 
     vector<int> max_num_live;

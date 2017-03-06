@@ -3,7 +3,7 @@ project(AccProject)
 
 set(CMAKE_CXX_STANDARD 11)
 
-add_executable(opti src/main.cpp src/OptiMacroNode.cpp src/Memory.cpp src/CGScheduling.cpp src/MacroNode.cpp
+add_executable(opti src/main.cpp src/Data.cpp src/OptiMacroNode.cpp src/Memory.cpp src/CGScheduling.cpp src/DRAMAccess.cpp src/MacroNode.cpp
         src/DataBlock.cpp src/MacroNodeTemplate.cpp src/Scheduling.cpp src/Pattern.cpp src/ComputationGraph.cpp
         src/Hardware.cpp src/ProcessConfig.cpp)
 

@@ -9,20 +9,12 @@ using namespace std;
 
 MacroNodeTemplate::MacroNodeTemplate(string in_name){
   name = in_name;
-
-  a_blk = {"A", 0};
-  b_blk = {"B", 0};
-  c_blk = {"C", 0};
 }
 
 MacroNodeTemplate::MacroNodeTemplate(vector<Operation> &in_ops, vector<Tile> &in_tiles, string in_name){
   ops = in_ops;
   tiles = in_tiles;
   name = in_name;
-
-  a_blk = {"A", 0};
-  b_blk = {"B", 0};
-  c_blk = {"C", 0};
 }
 
 
@@ -31,6 +23,16 @@ void MacroNodeTemplate::MN_mtxmul(int in_m, int in_n, int in_k, bool sche){
   m = in_m;
   n = in_n;
   k = in_k;
+
+  ablk = shared_ptr<DataBlock>(new DataBlock("A",m,k));
+  bblk = shared_ptr<DataBlock>(new DataBlock("B",k,n));
+  cblk = shared_ptr<DataBlock>(new DataBlock("C",m,n));
+  DblkAddr ablk_sp_addr = {ablk->matrix_name, 0};
+  ablk->setSPAddr(ablk_sp_addr);
+  DblkAddr bblk_sp_addr = {bblk->matrix_name, 0};
+  bblk->setSPAddr(bblk_sp_addr);
+  DblkAddr cblk_sp_addr = {cblk->matrix_name, 0};
+  cblk->setSPAddr(cblk_sp_addr);
 
   tile_m = in_m;
   tile_n = in_n;
@@ -67,12 +69,11 @@ void MacroNodeTemplate::MN_mtxmul(int in_m, int in_n, int in_k, bool sche){
   }
   mem = shared_ptr<MemoryTrack>(new MemoryTrack());
  
-  //cout << "input data bank allocation " << endl;
-  //determine io op bank
+
   //cout << endl << "A" << endl;
   for(int i=0; i<Ain.size(); i++){
     for(int j=0; j<Ain[i].size(); j++){
-      array<int,2> a_addr = global_sp->getAddr_a_ele(a_blk, Ain.size(), Ain[0].size(), i, j);
+      array<int,2> a_addr = ablk->getElementSPAddr(i, j);
       //cout << "A " << i << " " << j << ": " << a_addr[0] << " " << a_addr[1] << endl;
       ioop_addr[Ain[i][j]] = a_addr;
     }
@@ -80,7 +81,7 @@ void MacroNodeTemplate::MN_mtxmul(int in_m, int in_n, int in_k, bool sche){
   //cout << endl << "B" << endl;
   for(int i=0; i<Bin.size(); i++){
     for(int j=0; j<Bin[i].size(); j++){
-      array<int,2> b_addr = global_sp->getAddr_b_ele(b_blk, Bin.size(), Bin[0].size(), i, j);
+      array<int,2> b_addr = bblk->getElementSPAddr(i, j);
       //cout << "B " << i << " " << j << ": " << b_addr[0] << " " << b_addr[1] << endl;
       ioop_addr[Bin[i][j]] = b_addr;
     }
@@ -88,7 +89,7 @@ void MacroNodeTemplate::MN_mtxmul(int in_m, int in_n, int in_k, bool sche){
   //cout << endl << "C" << endl;
   for(int i=0; i<Cin.size(); i++){
     for(int j=0; j<Cin[i].size(); j++){
-      array<int,2> c_addr = global_sp->getAddr_c_ele(c_blk, Cin.size(), Cin[0].size(), i, j, 5);
+      array<int,2> c_addr = cblk->getElementSPAddr(i, j);
       //cout << "C " << i << " " << j << ": " << c_addr[0] << " " << c_addr[1] << endl;
       ioop_addr[Cin[i][j]] = c_addr;
     }
@@ -98,7 +99,6 @@ void MacroNodeTemplate::MN_mtxmul(int in_m, int in_n, int in_k, bool sche){
       ioop_addr[Cout[i][j]] = ioop_addr[Cin[i][j]];
     }
   }
-  //cout << "finish assign addr" << endl;
 
   if(sche){
     TileScheduling mn_sche(*this, MN);

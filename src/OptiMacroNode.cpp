@@ -9,6 +9,125 @@
 
 using namespace std;
 
+LoopOrder::LoopOrder(string loop1, string loop2, string loop3){
+  loop_idc[0] = loop1;
+  loop_idc[1] = loop2;
+  loop_idc[2] = loop3;
+}
+
+void LoopOrder::setupLoopOrder(OptiMacroNode* opti_mn){
+  //set nospill matrix
+  matrix_nospill = (loop_idc[2] == "m")?"B":(loop_idc[2] == "n")?"A":"C";
+  if(matrix_nospill == "A"){
+    if(loop_idc[0] == "m"){
+      matrix_spilltype1 = "C";
+      dblk1_size = opti_mn->c;
+      num_dblk1_mem = opti_mn->num_cblk_mem;
+      num_dblk1_need = opti_mn->blk_n;
+      num_reuse1 = opti_mn->blk_k;
+      num_iterate = opti_mn->blk_m;
+      idx_mode1 = COL_IDX;
+
+      matrix_spilltype2 = "B";
+      dblk2_size = opti_mn->b;
+      num_dblk2_mem = opti_mn->num_bblk_mem;
+      num_dblk2_need = opti_mn->blk_k*opti_mn->blk_n;
+      num_reuse2 = opti_mn->blk_m;
+      idx_mode2 = ROWMAJOR_IDX;
+    }
+    else{
+      matrix_spilltype1 = "B";
+      dblk1_size = opti_mn->b;
+      num_dblk1_mem = opti_mn->num_bblk_mem;
+      num_dblk1_need = opti_mn->blk_n;
+      num_reuse1 = opti_mn->blk_m;
+      num_iterate = opti_mn->blk_k;
+      idx_mode1 = COL_IDX;
+      
+      matrix_spilltype2 = "C";
+      dblk2_size = opti_mn->c;
+      num_dblk2_mem = opti_mn->num_cblk_mem;
+      num_dblk2_need = opti_mn->blk_m*opti_mn->blk_n;
+      num_reuse2 = opti_mn->blk_k;
+      idx_mode2 = ROWMAJOR_IDX;
+    }
+  }
+  else if(matrix_nospill == "B"){
+    if(loop_idc[0] == "k"){
+      matrix_spilltype1 = "A";
+      dblk1_size = opti_mn->a;
+      num_dblk1_mem = opti_mn->num_ablk_mem;
+      num_dblk1_need = opti_mn->blk_m;
+      num_reuse1 = opti_mn->blk_n;
+      num_iterate = opti_mn->blk_k;
+      idx_mode1 = ROW_IDX;
+
+      matrix_spilltype2 = "C";
+      dblk2_size = opti_mn->c;
+      num_dblk2_mem = opti_mn->num_cblk_mem;
+      num_dblk2_need = opti_mn->blk_m*opti_mn->blk_n;
+      num_reuse2 = opti_mn->blk_k;
+      idx_mode2 = COLMAJOR_IDX;
+    }
+    else{
+      matrix_spilltype1 = "C";
+      dblk1_size = opti_mn->c;
+      num_dblk1_mem = opti_mn->num_cblk_mem;
+      num_dblk1_need = opti_mn->blk_m;
+      num_reuse1 = opti_mn->blk_k;
+      num_iterate = opti_mn->blk_n;
+      idx_mode1 = ROW_IDX;
+      
+      matrix_spilltype2 = "A";
+      dblk2_size = opti_mn->a;
+      num_dblk2_mem = opti_mn->num_ablk_mem;
+      num_dblk2_need = opti_mn->blk_m*opti_mn->blk_k;
+      num_reuse2 = opti_mn->blk_n;
+      idx_mode2 = COLMAJOR_IDX;
+    }
+  }
+  else{
+    if(loop_idc[0] == "m"){
+      matrix_spilltype1 = "A";
+      dblk1_size = opti_mn->a;
+      num_dblk1_mem = opti_mn->num_ablk_mem;
+      num_dblk1_need = opti_mn->blk_k;
+      num_reuse1 = opti_mn->blk_n;
+      num_iterate = opti_mn->blk_m;
+      idx_mode1 = COL_IDX;
+      
+      matrix_spilltype2 = "B";
+      dblk2_size = opti_mn->b;
+      num_dblk2_mem = opti_mn->num_bblk_mem;
+      num_dblk2_need = opti_mn->blk_k*opti_mn->blk_n;
+      num_reuse2 = opti_mn->blk_m;
+      idx_mode2 = COLMAJOR_IDX;
+    }
+    else{
+      matrix_spilltype1 = "B";
+      dblk1_size = opti_mn->b;
+      num_dblk1_mem = opti_mn->num_bblk_mem;
+      num_dblk1_need = opti_mn->blk_k;
+      num_reuse1 = opti_mn->blk_m;
+      num_iterate = opti_mn->blk_n;
+      idx_mode1 = ROW_IDX;
+      
+      matrix_spilltype2 = "A";
+      dblk2_size = opti_mn->a;
+      num_dblk2_mem = opti_mn->num_ablk_mem;
+      num_dblk2_need = opti_mn->blk_k*opti_mn->blk_m;
+      num_reuse2 = opti_mn->blk_n;
+      idx_mode2 = ROWMAJOR_IDX;
+    }
+  }
+}
+
+void LoopOrder::setDblkSPAddrIdx(){
+  data_arrays[matrix_nospill]->setDblkSPAddrIdx(ZERO_IDX);
+  data_arrays[matrix_spilltype1]->setDblkSPAddrIdx(idx_mode1);
+  data_arrays[matrix_spilltype2]->setDblkSPAddrIdx(idx_mode2);
+}
+
 Parameters::Parameters(){
   blk_dimi = 0;
   blk_dimj = 0;
@@ -66,7 +185,7 @@ void Parameters::PrintInfo(){
   cout << "Parallelization: " << subblk_dimi*subblk_dimj << endl;
 
   cout << endl << "Loop order: " << endl;
-  cout << loop_order.loop_ind[0] << "->" << loop_order.loop_ind[1] << "->" << loop_order.loop_ind[2] << endl;
+  cout << loop_order.loop_idc[0] << "->" << loop_order.loop_idc[1] << "->" << loop_order.loop_idc[2] << endl;
 
   cout << endl << "Estimated number of spills: " << num_spill << endl;
 }
@@ -134,35 +253,10 @@ void OptiMacroNode::genSubblkSet(){
 
 
 unsigned long long OptiMacroNode::spill(LoopOrder& loop_order){
-  unsigned long long spill;
-  unsigned long long spill1;
-  unsigned long long spill2;
-  if(loop_order.loop_ind == array<string,3>{"m","n","k"}){
-    spill1 = spill_type1(a, num_ablk_mem, blk_k, blk_n, blk_m);
-    spill2  = spill_type2(b, num_bblk_mem, blk_k*blk_n, blk_m);
-  }
-  else if(loop_order.loop_ind == array<string,3>{"m","k","n"}){
-    spill1 = spill_type1(c, num_cblk_mem, blk_n, blk_k, blk_m);
-    spill2 = spill_type2(b, num_bblk_mem, blk_k*blk_n, blk_m);
-  }
-  else if(loop_order.loop_ind == array<string,3>{"n","m","k"}){
-    spill1 = spill_type1(b, num_bblk_mem, blk_k, blk_m, blk_n);
-    spill2 = spill_type2(a, num_ablk_mem, blk_m*blk_k, blk_n);
-  }
-  else if(loop_order.loop_ind == array<string,3>{"n","k","m"}){
-    spill1 = spill_type1(c, num_cblk_mem, blk_m, blk_k, blk_n);
-    spill2 = spill_type2(a, num_ablk_mem, blk_m*blk_k, blk_n);
-  }
-  else if(loop_order.loop_ind == array<string,3>{"k","m","n"}){
-    spill1 = spill_type1(b, num_bblk_mem, blk_n, blk_m, blk_k);
-    spill2 = spill_type2(c, num_cblk_mem, blk_m*blk_n, blk_k);
-  }
-  else{
-    spill1 = spill_type1(a, num_ablk_mem, blk_m, blk_n, blk_k);
-    spill2 = spill_type2(c, num_cblk_mem, blk_m*blk_n, blk_k);
-  }
+  unsigned long long spill1 = spill_type1(loop_order.dblk1_size, loop_order.num_dblk1_mem, loop_order.num_dblk1_need, loop_order.num_reuse1, loop_order.num_iterate);
+  unsigned long long spill2 = spill_type2(loop_order.dblk2_size, loop_order.num_dblk2_mem, loop_order.num_dblk2_need, loop_order.num_reuse2);
   
-  spill = spill1 + spill2;
+  unsigned long long spill = spill1+spill2;
   return spill;
 }
 
@@ -276,11 +370,11 @@ void OptiMacroNode::optiPara(){
 		  unsigned long long cur_spill;
 		  //find the smallest num_dblk
 		  if((num_ablk_mem <= num_bblk_mem) && (num_ablk_mem <= num_cblk_mem)){
-		    LoopOrder order1;
-		    LoopOrder order2;
-		    order1.loop_ind = {"m", "k", "n"};
-		    order2.loop_ind = {"k", "m", "n"};
-		    
+		    LoopOrder order1("m","k","n");
+		    LoopOrder order2("k","m","n");
+		    order1.setupLoopOrder(this);
+		    order2.setupLoopOrder(this);
+
 		    unsigned long long spill1 = spill(order1);
 		    unsigned long long spill2 = spill(order2);
 
@@ -294,11 +388,11 @@ void OptiMacroNode::optiPara(){
 		    }
 		  }
 		  else if((num_bblk_mem <= num_ablk_mem) && (num_bblk_mem <= num_cblk_mem)){
-		    LoopOrder order1;
-		    LoopOrder order2;
-		    order1.loop_ind = {"n", "k", "m"};
-		    order2.loop_ind = {"k", "n", "m"};
-		    
+		    LoopOrder order1("n","k","m");
+		    LoopOrder order2("k","n","m");
+		    order1.setupLoopOrder(this);
+		    order2.setupLoopOrder(this);
+
 		    unsigned long long spill1 = spill(order1);
 		    unsigned long long spill2 = spill(order2);
 
@@ -312,11 +406,11 @@ void OptiMacroNode::optiPara(){
 		    }
 		  }
 		  else{
-		    LoopOrder order1;
-		    LoopOrder order2;
-		    order1.loop_ind = {"m", "n", "k"};
-		    order2.loop_ind = {"n", "m", "k"};
-		    
+		    LoopOrder order1("m","n","k");
+		    LoopOrder order2("n","m","k");
+		    order1.setupLoopOrder(this);
+		    order2.setupLoopOrder(this);
+
 		    unsigned long long spill1 = spill(order1);
 		    unsigned long long spill2 = spill(order2);
 
