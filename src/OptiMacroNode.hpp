@@ -1,6 +1,8 @@
 #ifndef OPTIMACRONODE
 #define OPTIMACRONODE
 
+#include<map>
+#include<string>
 #include<iostream>
 #include "Util.hpp"
 
@@ -44,30 +46,33 @@ class Parameters{
 
   void PrintInfo();
 
-  int blk_dimi;
-  int blk_dimj;
-  int blk_diml;
+  //blk dim
+  map<string, int> blk_dim;
 
-  int subblk_dimi;
-  int subblk_dimj;
-  int subblk_diml;
+  //subblk dim
+  map<string, int> subblk_dim;
 
-  int blk_m;
-  int blk_n;
-  int blk_k;
+  //num of blks in each direction
+  map<string, int> num_blk;
 
-  int k_stage;
-  int num_cb;
+  //size of block
+  map<string, int> blk_size;
 
-  int num_bank_a;
-  int num_bank_b;
-  int num_bank_c;
-
-  int m_ex;
-  int n_ex;
-  int k_ex;
+  //key1: mn temp name
+  //key2: cb name
+  map<string, map<string,int>> k_stage;
+  map<string, map<string,int>> num_cb;
   
+  //number of banks
+  map<string, int> num_bank;
+
+  map<string, int> num_port;
+
+  map<string, int> ex_input_size;
+
   unsigned long long num_spill;
+  unsigned long long blk_compute_cycles;
+  unsigned long long total_compute_cycles;
 
   LoopOrder loop_order;
 };
@@ -82,15 +87,17 @@ class OptiMacroNode{
 
 	void genSubblkSet();
 
-	unsigned long long spill(LoopOrder &loop_order);
+	unsigned long long spill(LoopOrder &loop_order, unsigned long long& spill1, unsigned long long& spill2);
 	unsigned long long spill_type1(int blk_size, int num_dblk_mem, int num_dblk_need, int num_reuse, int iterate);
 	unsigned long long spill_type2(int blk_size, int num_dblk_mem, int num_dblk_need, int num_reuse);
 	
-	unsigned long long getPerf();
+	void getPerf(unsigned long long& perf, unsigned long long& blk_perf);
 	int MinPort(int sb_dimi, int sb_dimj, int sb_diml);
 	int MinBank(int k_subblk, int m_subblk, int n_subblk);
 
+	
 	void optiPara();
+	void setPara(); //used for debug
 
 	bool ConstraintBW_buffer(int k_subblk, int m_subblk, int n_subblk);
 	unsigned long long spill_a_buffer();

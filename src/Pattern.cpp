@@ -29,9 +29,9 @@ void Transpose_mtx(vector<vector<int>> &in_mtx, vector<vector<int>> &out_mtx);
 void Pattern::PrintOps(vector<Operation> &ops){
 
   cout << endl;
-  cout << name << endl;
+  cout << "Pattern: " << name << endl;
   cout << description << endl;
-  cout << cp << endl;
+  cout << "MN temp: " << mn_name << endl;
   for(vector<PatternUnit>::iterator pu=pus.begin(); pu!=pus.end(); pu++){
     for(vector<int>::iterator op=pu->ops.begin(); op!=pu->ops.end(); op++){
       cout << "op " << *op << ": ";
@@ -45,158 +45,8 @@ void Pattern::PrintOps(vector<Operation> &ops){
       }
       cout << endl;
       cout << "   tile: " << ops[*op].tile << endl;
+      cout << "   sp addr: bank " << ops[*op].sp_addr[0] << ", base " << ops[*op].sp_addr[1] << endl;
     }
-  }
-
-}
-
-// use cb defined in pattern to tile up the pattern
-void Pattern::TileGen(vector<Tile> &tiles, vector<Operation> &ops){
-  cout << "using this tile gen" << endl;
-  //pattern unit wait to be added to tiles
-  list<PatternUnit> wait;
-
-  //pattern units that ready to be added to a new compute block
-  queue<PatternUnit> ready;
-
-  //initialize these two
-  set<int> ops_wait;
-  for(vector<PatternUnit>::iterator pu=pus.begin(); pu!=pus.end(); pu++){
-    for(vector<int>::iterator op=pu->ops.begin(); op!=pu->ops.end(); op++){
-      ops_wait.insert(*op);
-    }
-  }
-
-  for(vector<PatternUnit>::iterator pu=pus.begin(); pu!=pus.end(); pu++){
-    //examine each pattern unit
-    int is_ready = 1;
-
-    set<int> ops_inpu;
-    for(vector<int>::iterator op=pu->ops.begin(); op!=pu->ops.end(); op++){
-      ops_inpu.insert(*op);
-    }
-
-    //examine all inputs of all ops in the pattern unit
-    for(vector<int>::iterator op=pu->ops.begin(); op!=pu->ops.end(); op++){
-      for(vector<int>::iterator op_in=ops[*op].in.begin(); op_in!=ops[*op].in.end(); op_in++){
-	// input op idx: *op_in
-	if(ops_wait.find(*op_in)!=ops_wait.end() && ops_inpu.find(*op_in)==ops_inpu.end()){
-	  is_ready = 0;
-	}
-      }	      
-    }
-
-    if(is_ready){
-      //put this pattern units into ready queue
-      ready.push(*pu);
-    }
-    else{
-      wait.push_back(*pu);
-    }
-  }
-
-
-  while(!ready.empty()){
-    Tile tile(cb);
-    int count_pu_added = 0;
-    while(count_pu_added<cb->width && !ready.empty()){
-      PatternUnit pu_toadd = ready.front();
-      ready.pop();
-
-      //add the whole pu into tile and update ops_wait
-      for(vector<int>::iterator op=pu_toadd.ops.begin(); op!=pu_toadd.ops.end(); op++){
-	tile.ops.push_back(*op);
-	ops[*op].tile = tiles.size();
-	ops_wait.erase(*op);
-
-      }
-
-      count_pu_added++;
-    }
-
-    //add other pu that depend on ready
-    while(count_pu_added<cb->width*cb->max_depth && !wait.empty()){
-      //check each pu in wait
-      vector<list<PatternUnit>::iterator> pus_toadd;
-      for(list<PatternUnit>::iterator pu=wait.begin(); pu!=wait.end(); pu++){
-	int can_add = 1;
-
-	set<int> ops_inpu;
-	for(vector<int>::iterator op=pu->ops.begin(); op!=pu->ops.end(); op++){
-	  ops_inpu.insert(*op);
-	}
-
-	for(vector<int>::iterator op=pu->ops.begin(); op!=pu->ops.end(); op++){
-	  for(vector<int>::iterator op_in=ops[*op].in.begin(); op_in!=ops[*op].in.end(); op_in++){
-	    if(ops_wait.find(*op_in)!=ops_wait.end() && ops_inpu.find(*op_in)==ops_inpu.end()){
-	      can_add = 0;
-	    }
-	  }
-	}
-
-	if(can_add){
-	  pus_toadd.push_back(pu);
-	}
-      }
-
-      if(pus_toadd.empty()){
-	break;
-      }
-      else{
-	for(size_t i=0; i<pus_toadd.size(); i++){
-	  for(vector<int>::iterator op=pus_toadd[i]->ops.begin(); op!=pus_toadd[i]->ops.end(); op++){
-	    tile.ops.push_back(*op);
-	    ops[*op].tile = tiles.size();
-	    ops_wait.erase(*op);
-	  }
-	  wait.erase(pus_toadd[i]);
-	  count_pu_added++;
-	}
-
-      }
-    }
-
-    //real depth of used cb
-    if(cb->max_depth != 1){
-      int cb_real_depth = count_pu_added / cb->width;
-      tile.latency = cb->GetRealLatency(cb_real_depth);
-    }
-    else{
-      tile.latency = cb->latency;
-    }
-
-    //update ready queue
-    vector<list<PatternUnit>::iterator> pus_ready;
-    for(list<PatternUnit>::iterator pu=wait.begin(); pu!=wait.end(); pu++){
-      int is_ready = 1;
-
-      set<int> ops_inpu;
-      for(vector<int>::iterator op=pu->ops.begin(); op!=pu->ops.end(); op++){
-	ops_inpu.insert(*op);
-      }
-
-      for(vector<int>::iterator op=pu->ops.begin(); op!=pu->ops.end(); op++){
-	for(vector<int>::iterator op_in=ops[*op].in.begin(); op_in!=ops[*op].in.end(); op_in++){
-	  if(ops_wait.find(*op_in)!=ops_wait.end() && ops_inpu.find(*op_in)==ops_inpu.end()){
-	    is_ready = 0;
-	  }
-	}
-      }
-
-      if(is_ready){
-	ready.push(*pu);
-	pus_ready.push_back(pu);
-      }
-    }
-    for(size_t i=0; i<pus_ready.size(); i++){
-      wait.erase(pus_ready[i]);
-    }
-
-    tile.pattern_name = name;
-    tile.cpsection_name = cp;
-    tiles.push_back(tile);
-    tiles_idx.push_back(tiles.size()-1);
-
   }
 
 }
@@ -328,9 +178,8 @@ mns.push_back(mn);
 //-----------------------------------------------------------------------------------------
 
 // Load vector with size n
-Load_vec::Load_vec(vector<Operation> &ops, string &in_cp, int n, vector<int> &out_vec){
-
-  cp = in_cp;
+Load_vec::Load_vec(vector<Operation> &ops, string &in_mn_name, int n, vector<int> &out_vec){
+  mn_name = in_mn_name;
   int pre_idx = ops.size()-1;
 
   for(int i=1; i<=n; i++){
@@ -349,15 +198,15 @@ Load_vec::Load_vec(vector<Operation> &ops, string &in_cp, int n, vector<int> &ou
 
   name = "load_vector";
 
-  cb = ComputeBlockLib::cbs["load"];
+  cb = ComputeBlockLib::cbs[mn_name]["load"];
 }
 
 // Load matrix with size mxn
-Load_mtx::Load_mtx(vector<Operation> &ops, string &in_cp, int in_m, int in_n, vector<vector<int>> &out_mtx){
+Load_mtx::Load_mtx(vector<Operation> &ops, string &in_mn_name, int in_m, int in_n, vector<vector<int>> &out_mtx){
+  mn_name = in_mn_name;
   m = in_m;
   n = in_n;
 
-  cp = in_cp;
   int pre_idx = ops.size()-1;
 
   for(int i=1; i<=m; i++){
@@ -377,9 +226,9 @@ Load_mtx::Load_mtx(vector<Operation> &ops, string &in_cp, int in_m, int in_n, ve
     }
     out_mtx.push_back(row);
   }
-  name = "load_matrix";
+  name = "load";
 
-  cb = ComputeBlockLib::cbs["load"];
+  cb = ComputeBlockLib::cbs[mn_name][name];
 }
 
 
@@ -397,7 +246,7 @@ void Load_mtx::TileGen(vector<Tile> &tiles, vector<Operation> &ops){
     Tile tile(cb);
     tile.latency = cb->latency;
     tile.pattern_name = name;
-    tile.cpsection_name = cp;
+    tile.mn_name = mn_name;
     tiles.push_back(tile);
     tiles_idx.push_back(tiles.size()-1);
   }
@@ -590,8 +439,8 @@ void Load_mtx::MacroNodeGen_idxorder(vector<MacroNode*> &mns){
 
 
 // Store final results
-Store_vec::Store_vec(vector<Operation> &ops, string &in_cp, const vector<int> &in_vec){
-  cp = in_cp;
+Store_vec::Store_vec(vector<Operation> &ops, string &in_mn_name, const vector<int> &in_vec){
+  mn_name = in_mn_name;
   int pre_idx = ops.size()-1;
 
   for(size_t i=0; i<in_vec.size(); i++){
@@ -608,21 +457,21 @@ Store_vec::Store_vec(vector<Operation> &ops, string &in_cp, const vector<int> &i
     pus.push_back(pu);
   }
 
-  name = "store_vector";
-
-  cb = ComputeBlockLib::cbs["store"];	
+  name = "store";
+  cb = ComputeBlockLib::cbs[mn_name][name];	
 }
 
 // Store final results - matrix
-Store_mtx::Store_mtx(vector<Operation> &ops, string &in_cp, const vector<vector<int>> &in_mtx){
+Store_mtx::Store_mtx(vector<Operation> &ops, string &in_mn_name, const vector<vector<int>> &in_mtx){
+  mn_name = in_mn_name;
+
   m = in_mtx.size();
   n = in_mtx[0].size();
 
-  cp = in_cp;
   int pre_idx = ops.size()-1;
 
   for(size_t i=0; i<in_mtx.size(); i++){
-    for(size_t j=0; j<in_mtx[0].size(); j++){
+    for(size_t j=0; j<in_mtx[i].size(); j++){
       PatternUnit pu;
 
       pre_idx++;
@@ -636,9 +485,9 @@ Store_mtx::Store_mtx(vector<Operation> &ops, string &in_cp, const vector<vector<
       pus.push_back(pu);
     }
   }
-  name = "store_matrix";
+  name = "store";
 
-  cb = ComputeBlockLib::cbs["store"];
+  cb = ComputeBlockLib::cbs[mn_name][name];
 }
 
 Store_mtx::~Store_mtx(){
@@ -657,7 +506,7 @@ void Store_mtx::TileGen(vector<Tile> &tiles, vector<Operation> &ops){
     Tile tile(cb);
     tile.latency = cb->latency;
     tile.pattern_name = name;
-    tile.cpsection_name = cp;
+    tile.mn_name = mn_name;
     tiles.push_back(tile);
     tiles_idx.push_back(tiles.size()-1);
   }
@@ -677,6 +526,57 @@ void Store_mtx::TileGen(vector<Tile> &tiles, vector<Operation> &ops){
 
   cout << "pattern dimension (pu): 1 x " << pus.size() << endl;
   cout << "pattern dimension (tile): 1 x " << num_tile << endl;
+}
+
+
+Copy_vec::Copy_vec(vector<Operation> &ops, string &in_mn_name, const vector<int> &in_vec, vector<int> &out_vec){
+  mn_name = in_mn_name;
+
+  int pre_idx = ops.size()-1;
+
+  for(size_t i=0; i<in_vec.size(); i++){
+    PatternUnit pu;
+
+    pre_idx++;
+    Operation op;
+    op.idx = pre_idx;
+    op.fu = FunctionUnitLib::COPY;
+    op.in.push_back(in_vec[i]);
+    ops.push_back(op);
+    pu.ops.push_back(op.idx);
+    out_vec.push_back(op.idx);
+
+    pus.push_back(pu);
+  }
+
+  name = "copy";
+  description = "Copy vector to another SRAM address";
+
+  cb = ComputeBlockLib::cbs[mn_name][name];
+}
+
+void Copy_vec::TileGen(vector<Tile> &tiles, vector<Operation> &ops){
+  int num_tile = (pus.size()%cb->width==0)?pus.size()/cb->width:pus.size()/cb->width+1;
+
+  int tile_idx_start = tiles.size();
+  for(int i=0; i<num_tile; i++){
+    Tile tile(cb);
+    tile.latency = cb->latency;
+    tile.pattern_name = name;
+    tile.mn_name = mn_name;
+    tiles.push_back(tile);
+    tiles_idx.push_back(tiles.size()-1);
+  }
+
+  for(vector<PatternUnit>::iterator pu=pus.begin(); pu!=pus.end(); pu++){
+    int idx = pu-pus.begin();
+    int tile_idx = tile_idx_start + int(idx/cb->width);
+    //add pu to the tiles[tile_idx];
+    for(vector<int>::iterator op=pu->ops.begin(); op!=pu->ops.end(); op++){
+      tiles[tile_idx].ops.push_back(*op);
+      ops[*op].tile = tile_idx;
+    }
+  }
 }
 
 /*
@@ -824,9 +724,8 @@ void Store_mtx::MacroNodeGen_idxorder(vector<MacroNode*> &mns){
 
 
 // Matrix multiplication
-MtxMul::MtxMul(vector<Operation> &ops, string &in_cp, const vector<vector<int>> &in_mtx1, const vector<vector<int>> &in_mtx2, vector<vector<int>> &out_mtx)
-{
-  cp = in_cp;
+MtxMul::MtxMul(vector<Operation> &ops, string &in_mn_name, const vector<vector<int>> &in_mtx1, const vector<vector<int>> &in_mtx2, vector<vector<int>> &out_mtx){
+  mn_name = in_mn_name;
   int pre_idx = ops.size()-1;
 
   for(size_t i=0; i<in_mtx1.size(); i++){
@@ -873,9 +772,9 @@ MtxMul::MtxMul(vector<Operation> &ops, string &in_cp, const vector<vector<int>> 
     out_mtx.push_back(out_mtx_row);
   }
 
-  name = "matrix_multiplication";
+  name = "mul_acc";
 
-  cb = ComputeBlockLib::cbs["mul_acc"];	
+  cb = ComputeBlockLib::cbs[mn_name][name];	
 
   m = in_mtx1.size();
   k = in_mtx1[0].size();
@@ -894,21 +793,22 @@ MtxMul::~MtxMul(){
 void MtxMul::TileGen(vector<Tile> &tiles, vector<Operation> &ops){
   //initialize tiles
   int num_tile_row = ((m*n)%cb->width == 0)? (m*n)/cb->width: (m*n)/cb->width+1;
-  int num_tile_col = (k%cb->max_depth == 0)? k/cb->max_depth: k/cb->max_depth+1;
+  int num_tile_col = (k%cb->stage == 0)? k/cb->stage: k/cb->stage+1;
 
   int tile_idx_start = tiles.size();
   for(int i=0; i<num_tile_col; i++){
     for(int j=0; j<num_tile_row; j++){
       Tile tile(cb);
-      if((k%cb->max_depth != 0) && (i == num_tile_col-1)){
-	int cb_real_depth = k%cb->max_depth;
-	tile.latency = cb->GetRealLatency(cb_real_depth);
+      if((k%cb->stage != 0) && (i == num_tile_col-1)){
+	int cb_real_stage = k%cb->stage;
+	cb->updateStage(cb_real_stage);
+	tile.latency = cb->latency;
       }
       else{
 	tile.latency = cb->latency;
       }
       tile.pattern_name = name;
-      tile.cpsection_name = cp;
+      tile.mn_name = mn_name;
       tiles.push_back(tile);
       tiles_idx.push_back(tiles.size()-1);
     }
@@ -918,7 +818,7 @@ void MtxMul::TileGen(vector<Tile> &tiles, vector<Operation> &ops){
     int idx = pu-pus.begin();
     int col_idx = idx/k;
     int row_idx = idx-col_idx*k;
-    int tile_idx = tile_idx_start + int(row_idx/cb->max_depth)*num_tile_row + int(col_idx/cb->width);
+    int tile_idx = tile_idx_start + int(row_idx/cb->stage)*num_tile_row + int(col_idx/cb->width);
     //add pu to the tiles[tile_idx];
     for(vector<int>::iterator op=pu->ops.begin(); op!=pu->ops.end(); op++){
       tiles[tile_idx].ops.push_back(*op);
@@ -928,7 +828,7 @@ void MtxMul::TileGen(vector<Tile> &tiles, vector<Operation> &ops){
 
   tile_m = m;
   tile_n = n;
-  tile_k = (k%cb->max_depth==0)?k/cb->max_depth:k/cb->max_depth+1;
+  tile_k = (k%cb->stage==0)?k/cb->stage:k/cb->stage+1;
   
   cout << "pattern dimension (pu): " << k << " x " << m*n << endl;
   cout << "pattern dimension (tile): " << num_tile_col << " x " << num_tile_row << endl;
@@ -1369,9 +1269,8 @@ void MtxMul::MacroNodeGen_idxorder(vector<MacroNode*> &mns){
 */
 
 
-MtxMulAdd::MtxMulAdd(vector<Operation> &ops, string &in_cp, const vector<vector<int>> &in_mtx1, const vector<vector<int>> &in_mtx2, const vector<vector<int>> &in_mtx3, vector<vector<int>> &out_mtx)
-{
-  cp = in_cp;
+SuborAddMtxMul::SuborAddMtxMul(bool is_add, vector<Operation> &ops, string &in_mn_name, const vector<vector<int>> &in_mtx1, const vector<vector<int>> &in_mtx2, const vector<vector<int>> &in_mtx3, vector<vector<int>> &out_mtx){
+  mn_name = in_mn_name;
   int pre_idx = ops.size()-1;
 
   for(size_t i=0; i<in_mtx1.size(); i++){
@@ -1395,16 +1294,27 @@ MtxMulAdd::MtxMulAdd(vector<Operation> &ops, string &in_cp, const vector<vector<
 	Operation op2;
 	op2.idx = pre_idx;
 	if(k==0){
-	  op2.in.push_back(op1.idx);
 	  op2.in.push_back(in_mtx3[i][j]);
-	  op2.fu = FunctionUnitLib::ADD;
+	  op2.in.push_back(op1.idx);
+	  if(is_add){
+	    op2.fu = FunctionUnitLib::ADD;
+	  }
+	  else{
+	    op2.fu = FunctionUnitLib::SUB;
+	  }
 	}
 	else{
 	  // last one and second last one
-	  op2.in.push_back(op1.idx);
 	  op2.in.push_back(op1.idx-1);
-	  op2.fu = FunctionUnitLib::ADD;
+	  op2.in.push_back(op1.idx);
+	  if(is_add){
+	    op2.fu = FunctionUnitLib::ADD;
+	  }
+	  else{
+	    op2.fu = FunctionUnitLib::SUB;
+	  }
 	}
+	op2.sp_addr = ops[in_mtx3[i][j]].sp_addr;
 	ops.push_back(op2);
 	pu.ops.push_back(op2.idx);
 
@@ -1418,33 +1328,39 @@ MtxMulAdd::MtxMulAdd(vector<Operation> &ops, string &in_cp, const vector<vector<
     out_mtx.push_back(out_mtx_row);
   }
 
-  name = "matrix_multiplication_addition";
+  if(is_add){
+    name = "acc_mul";
+  }
+  else{
+    name = "sub_mul";
+  }
+  cb = ComputeBlockLib::cbs[mn_name][name];	
 
-  cb = ComputeBlockLib::cbs["mul_acc"];	
-  
   m = in_mtx1.size();
   k = in_mtx1[0].size();
   n = in_mtx2[0].size();
 }
 
-void MtxMulAdd::TileGen(vector<Tile> &tiles, vector<Operation> &ops){
+void SuborAddMtxMul::TileGen(vector<Tile> &tiles, vector<Operation> &ops){
   //initialize tiles
+  cout << "in mtxmul tilge gen " << endl;
   int num_tile_row = ((m*n)%cb->width == 0)? (m*n)/cb->width: (m*n)/cb->width+1;
-  int num_tile_col = (k%cb->max_depth == 0)? k/cb->max_depth: k/cb->max_depth+1;
+  int num_tile_col = (k%cb->stage == 0)? k/cb->stage: k/cb->stage+1;
 
   int tile_idx_start = tiles.size();
   for(int i=0; i<num_tile_col; i++){
     for(int j=0; j<num_tile_row; j++){
       Tile tile(cb);
-      if((k%cb->max_depth != 0) && (i == num_tile_col-1)){
-	int cb_real_depth = k%cb->max_depth;
-	tile.latency = cb->GetRealLatency(cb_real_depth);
+      if((k%cb->stage != 0) && (i == num_tile_col-1)){
+	int cb_real_stage = k%cb->stage;
+	cb->updateStage(cb_real_stage);
+	tile.latency = cb->latency;
       }
       else{
 	tile.latency = cb->latency;
       }
       tile.pattern_name = name;
-      tile.cpsection_name = cp;
+      tile.mn_name = mn_name;
       tiles.push_back(tile);
       tiles_idx.push_back(tiles.size()-1);
     }
@@ -1454,7 +1370,7 @@ void MtxMulAdd::TileGen(vector<Tile> &tiles, vector<Operation> &ops){
     int idx = pu-pus.begin();
     int col_idx = idx/k;
     int row_idx = idx-col_idx*k;
-    int tile_idx = tile_idx_start + int(row_idx/cb->max_depth)*num_tile_row + int(col_idx/cb->width);
+    int tile_idx = tile_idx_start + int(row_idx/cb->stage)*num_tile_row + int(col_idx/cb->width);
     //add pu to the tiles[tile_idx];
     for(vector<int>::iterator op=pu->ops.begin(); op!=pu->ops.end(); op++){
       tiles[tile_idx].ops.push_back(*op);
@@ -1464,13 +1380,12 @@ void MtxMulAdd::TileGen(vector<Tile> &tiles, vector<Operation> &ops){
 
   tile_m = m;
   tile_n = n;
-  tile_k = (k%cb->max_depth==0)?k/cb->max_depth:k/cb->max_depth+1;
+  tile_k = (k%cb->stage==0)?k/cb->stage:k/cb->stage+1;
 }
 
+/*
 // Calculate the sum of each column
-ColSum::ColSum(vector<Operation> &ops, string &in_cp, const vector<vector<int>> &in_mtx, vector<int> &out_vec)
-{
-  cp = in_cp;
+ColSum::ColSum(vector<Operation> &ops, string &in_mn_name, const vector<vector<int>> &in_mtx, vector<int> &out_vec):mn_name(in_mn_name){
   int pre_idx = ops.size()-1;
 
   for(size_t j=0; j<in_mtx[0].size(); j++){
@@ -1501,15 +1416,16 @@ ColSum::ColSum(vector<Operation> &ops, string &in_cp, const vector<vector<int>> 
     }
   }
 
-  name = "Pattern: sum of each column of matrix";
+  name = "acc";
   description = "Each column sum consists of a series of addition.";
 
-  cb = ComputeBlockLib::cbs["acc"];
+  cb = ComputeBlockLib::cbs[mn_name][name];
 }
+*/
 
-Div_vec::Div_vec(vector<Operation> &ops, string &in_cp, const vector<int> &in_vec1, const vector<int> &in_vec2, vector<int> &out_vec)
-{
-  cp = in_cp;
+Div_vec::Div_vec(vector<Operation> &ops, string &in_mn_name, const vector<int> &in_vec1, const vector<int> &in_vec2, vector<int> &out_vec){
+  mn_name = in_mn_name;
+
   int pre_idx = ops.size()-1;
 
   for(size_t i=0; i<in_vec1.size(); i++){
@@ -1528,16 +1444,39 @@ Div_vec::Div_vec(vector<Operation> &ops, string &in_cp, const vector<int> &in_ve
     pus.push_back(pu);
   }
 
-  name = "Pattern: vector element-wise division";
+  name = "div";
   description = "Each vector element is divided by the other vector element";
 
-  cb = ComputeBlockLib::cbs["div"];
+  cb = ComputeBlockLib::cbs[mn_name][name];
+}
+
+void Div_vec::TileGen(vector<Tile> &tiles, vector<Operation> &ops){
+  int num_tile = (pus.size()%cb->width==0)?pus.size()/cb->width:pus.size()/cb->width+1;
+
+  int tile_idx_start = tiles.size();
+  for(int i=0; i<num_tile; i++){
+    Tile tile(cb);
+    tile.latency = cb->latency;
+    tile.pattern_name = name;
+    tile.mn_name = mn_name;
+    tiles.push_back(tile);
+    tiles_idx.push_back(tiles.size()-1);
+  }
+
+  for(vector<PatternUnit>::iterator pu=pus.begin(); pu!=pus.end(); pu++){
+    int idx = pu-pus.begin();
+    int tile_idx = tile_idx_start + int(idx/cb->width);
+    //add pu to the tiles[tile_idx];
+    for(vector<int>::iterator op=pu->ops.begin(); op!=pu->ops.end(); op++){
+      tiles[tile_idx].ops.push_back(*op);
+      ops[*op].tile = tile_idx;
+    }
+  }
 }
 
 
-Div_mtx::Div_mtx(vector<Operation> &ops, string &in_cp, const vector<vector<int>> &in_mtx1, const vector<vector<int>> &in_mtx2, vector<vector<int>> &out_mtx)
-{
-  cp = in_cp;
+Div_mtx::Div_mtx(vector<Operation> &ops, string &in_mn_name, const vector<vector<int>> &in_mtx1, const vector<vector<int>> &in_mtx2, vector<vector<int>> &out_mtx){
+  mn_name = in_mn_name;
   int pre_idx = ops.size()-1;
 
   for(size_t i=0; i<in_mtx1.size(); i++){
@@ -1560,16 +1499,14 @@ Div_mtx::Div_mtx(vector<Operation> &ops, string &in_cp, const vector<vector<int>
     out_mtx.push_back(out_mtx_row);
   }
 
-  name = "Pattern: mtx element-wise division";
+  name = "div";
   description = "Each mtx element is divided by the other mtx element";
 
-  cb = ComputeBlockLib::cbs["div"];
+  cb = ComputeBlockLib::cbs[mn_name][name];
 }
 
-
-Sub_mtx::Sub_mtx(vector<Operation> &ops, string &in_cp, const vector<vector<int>> &in_mtx1, const vector<vector<int>> &in_mtx2, vector<vector<int>> &out_mtx)
-{
-  cp = in_cp;
+/*
+Sub_mtx::Sub_mtx(vector<Operation> &ops, string &in_mn_name, const vector<vector<int>> &in_mtx1, const vector<vector<int>> &in_mtx2, vector<vector<int>> &out_mtx):mn_name(in_mn_name){
   int pre_idx = ops.size()-1;
 
   for(size_t i=0; i<in_mtx1.size(); i++){
@@ -1595,12 +1532,10 @@ Sub_mtx::Sub_mtx(vector<Operation> &ops, string &in_cp, const vector<vector<int>
   name = "Pattern: mtx element-wise subtraction";
   description = "Each mtx element is subtracted by the other mtx element";
 
-  cb = ComputeBlockLib::cbs["sub"];
+  cb = ComputeBlockLib::cbs[mn_name]["sub"];
 }
 
-SquareAcc_vec::SquareAcc_vec(vector<Operation> &ops, string &in_cp, const vector<int> &in_vec, int &out)
-{
-  cp = in_cp;
+SquareAcc_vec::SquareAcc_vec(vector<Operation> &ops, string &in_mn_name, const vector<int> &in_vec, int &out):mn_name(in_mn_name){
   int pre_idx = ops.size()-1;
 
   for(size_t i=0; i<in_vec.size(); i++){
@@ -1639,13 +1574,11 @@ SquareAcc_vec::SquareAcc_vec(vector<Operation> &ops, string &in_cp, const vector
   name = "Pattern: sum of element square";
   description = "Sum of element square in the vector";
 
-  cb = ComputeBlockLib::cbs["mul_acc"];
+  cb = ComputeBlockLib::cbs[mn_name]["mul_acc"];
 }
 
 //square acc of mtx col
-SquareAcc_mtx::SquareAcc_mtx(vector<Operation> &ops, string &in_cp, const vector<vector<int>> &in_mtx, vector<int> &out_vec)
-{
-  cp = in_cp;
+SquareAcc_mtx::SquareAcc_mtx(vector<Operation> &ops, string &in_mn_name, const vector<vector<int>> &in_mtx, vector<int> &out_vec):mn_name(in_mn_name){
   int pre_idx = ops.size()-1;
 
   for(size_t j=0; j<in_mtx[0].size(); j++){
@@ -1687,12 +1620,10 @@ SquareAcc_mtx::SquareAcc_mtx(vector<Operation> &ops, string &in_cp, const vector
   name = "Pattern: sum of element square";
   description = "Sum of element square in the mtx";
 
-  cb = ComputeBlockLib::cbs["mul_acc"];
+  cb = ComputeBlockLib::cbs[mn_name]["mul_acc"];
 }
 
-DivRoot::DivRoot(vector<Operation> &ops, string &in_cp, const vector<int> &in_vec1, const vector<int> &in_vec2, vector<int> &out_vec)
-{
-  cp = in_cp;
+DivRoot::DivRoot(vector<Operation> &ops, string &in_mn_name, const vector<int> &in_vec1, const vector<int> &in_vec2, vector<int> &out_vec):mn_name(in_mn_name){
   int pre_idx = ops.size()-1;
 
   for(size_t i=0; i<in_vec1.size(); i++){
@@ -1723,13 +1654,11 @@ DivRoot::DivRoot(vector<Operation> &ops, string &in_cp, const vector<int> &in_ve
   name = "Pattern: division between two vectors and then get root";
   description = "Division between two vectors and then get root";
 
-  cb = ComputeBlockLib::cbs["div_root"];
+  cb = ComputeBlockLib::cbs[mn_name]["div_root"];
 }
 
 
-Root_s::Root_s(vector<Operation> &ops, string &in_cp, int in_s, int &out_s)
-{
-  cp = in_cp;
+Root_s::Root_s(vector<Operation> &ops, string &in_mn_name, int in_s, int &out_s):mn_name(in_mn_name){
   int pre_idx = ops.size()-1;
 
   PatternUnit pu;
@@ -1748,12 +1677,10 @@ Root_s::Root_s(vector<Operation> &ops, string &in_cp, int in_s, int &out_s)
   name = "Pattern: root of each element in vector";
   description = "Get root value of each vector element. ";
 
-  cb = ComputeBlockLib::cbs["root_s"];	 
+  cb = ComputeBlockLib::cbs[mn_name]["root_s"];	 
 }
 
-Div_s::Div_s(vector<Operation> &ops, string &in_cp, int in_s1, int in_s2, int &out_s)
-{
-  cp = in_cp;
+Div_s::Div_s(vector<Operation> &ops, string &in_mn_name, int in_s1, int in_s2, int &out_s):mn_name(in_mn_name){
   int pre_idx = ops.size()-1;
 
   PatternUnit pu;
@@ -1771,11 +1698,10 @@ Div_s::Div_s(vector<Operation> &ops, string &in_cp, int in_s1, int in_s2, int &o
   name = "Pattern: division between two scalar";
   description = "Division between two scalar";
 
-  cb = ComputeBlockLib::cbs["div_s"];
+  cb = ComputeBlockLib::cbs[mn_name]["div_s"];
 }
 
-Jacobi_cs::Jacobi_cs(vector<Operation> &ops, string &in_cp, int app, int aqq, int apq, int &c, int &s, int &ns){
-  cp = in_cp;
+Jacobi_cs::Jacobi_cs(vector<Operation> &ops, string &in_mn_name, int app, int aqq, int apq, int &c, int &s, int &ns):mn_name(in_mn_name){
   int pre_idx = ops.size()-1;
 
   PatternUnit pu;
@@ -1864,15 +1790,14 @@ Jacobi_cs::Jacobi_cs(vector<Operation> &ops, string &in_cp, int app, int aqq, in
   name = "Pattern: c,s in Jacobi transformation";
   description = "generate c,s used in Jacobi transformation";
 
-  cb = ComputeBlockLib::cbs["jacobi_s"];
+  cb = ComputeBlockLib::cbs[mn_name]["jacobi_s"];
 }
 
-Givens_cs::Givens_cs(vector<Operation> &ops, string &in_cp, int arp, int arq, bool zero_arp, int &c, int &s, int &ns){
+Givens_cs::Givens_cs(vector<Operation> &ops, string &in_mn_name, int arp, int arq, bool zero_arp, int &c, int &s, int &ns):mn_name(in_mn_name){
 
   //cout << "in givens pattern, arp: " << arp << endl;
   //cout << "in givens pattern, arq: " << arq << endl;
 
-  cp = in_cp;
   int pre_idx = ops.size()-1;
 
   PatternUnit pu;
@@ -1960,6 +1885,7 @@ Givens_cs::Givens_cs(vector<Operation> &ops, string &in_cp, int arp, int arq, bo
   name = "Pattern: C, S in Givens transformation";
   description = "generate c,s used in Givens transformation";
 
-  cb = ComputeBlockLib::cbs["givens_s"];	
+  cb = ComputeBlockLib::cbs[mn_name]["givens_s"];	
 };
+*/
 

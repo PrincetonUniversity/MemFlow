@@ -14,73 +14,76 @@ class ComputeBlock{
   public:
     ComputeBlock(){};
     virtual ~ComputeBlock(){};
-    virtual int GetRealLatency(int in_realdepth){return 0;};	
     virtual int LiveinReadCycle(int livein_idx){return 0;};
-    virtual void UpdateDepth(int in_depth){};
+    virtual void updateStage(int in_stage){};
 
     string name;
-    int idx; //can delete later
     const ComputeBlockUnit* cb_unit;
     int width;
-    int max_depth;
+    int stage;
     int latency;
 };
 
 class CB_Load: public ComputeBlock{
   public:
-    CB_Load(string in_name, int in_idx, int in_width);
+    CB_Load(string in_name, int in_width);
 };
-
 
 class CB_Store: public ComputeBlock{
   public:
-    CB_Store(string in_name, int in_idx, int in_width);
+    CB_Store(string in_name, int in_width);
 };
 
+class CB_Copy: public ComputeBlock{
+  public:
+    CB_Copy(string in_name, int in_width);
+};
 
 class CB_Sub: public ComputeBlock{
   public:
-    CB_Sub(string in_name, int in_idx, int in_width);
+    CB_Sub(string in_name, int in_width);
 };
 
 class CB_Div: public ComputeBlock{
   public:
-    CB_Div(string in_name, int in_idx, int in_width);
+    CB_Div(string in_name, int in_width);
 };
 
 class CB_DivRoot: public ComputeBlock{
   public:
-    CB_DivRoot(string in_name, int in_idx, int in_width);
+    CB_DivRoot(string in_name, int in_width);
 };
 
 class CB_MulAcc: public ComputeBlock{
   public:
-    CB_MulAcc(string in_name, int in_idx, int in_width, int in_depth);
-    void UpdateDepth(int in_depth);
-    int GetRealLatency(int in_realdepth);
+    CB_MulAcc(bool in_is_add, string in_name, int in_width, int in_stage);
+    void updateStage(int in_stage);
     int LiveinReadCycle(int livein_idx);
+
+    int latency_rw_c;
+    bool is_add;
 };
 
 class CB_Acc: public ComputeBlock{
   public:
-    CB_Acc(string in_name, int in_idx, int in_width, int in_depth);
-    int GetRealLatency(int in_realdepth);
+    CB_Acc(string in_name, int in_width, int in_stage);
+    void updateStage(int in_stage);
     int LiveinReadCycle(int livein_idx);
 };
 
 class CB_Root: public ComputeBlock{
   public:
-    CB_Root(string in_name, int in_idx, int in_width);
+    CB_Root(string in_name, int in_width);
 };
 
 class CB_JacobiS: public ComputeBlock{
   public:
-    CB_JacobiS(string in_name, int in_idx);
+    CB_JacobiS(string in_name);
 };
 
 class CB_GivensS: public ComputeBlock{
   public:
-    CB_GivensS(string in_name, int in_idx);
+    CB_GivensS(string in_name);
 };
 
 /*

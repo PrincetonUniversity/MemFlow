@@ -33,8 +33,11 @@ void CGScheduling::LoopIteration(int blk_i, int blk_j, int blk_l){
 
     int first_fetch_ind = (opti_para.loop_order.loop_idc[2] == "k")?blk_j:blk_l;
     if((ablk->AddrIdx() > mem.sp_regions["A"].num_blks-1) || (first_fetch_ind == 0)){
-      //cout << "load a block" << endl;
-      cycle += load_store->loadDblk(ablk);
+      if(load_latency.find("A") == load_latency.end()){
+	cout << "first load " << endl;
+        load_latency["A"] = load_store->loadDblk(ablk);
+      }
+      cycle += load_latency["A"];
       num_dram_read += ablk->size;
     }
     mn.a_sp_addr = ablk->sp_addr;
@@ -47,7 +50,11 @@ void CGScheduling::LoopIteration(int blk_i, int blk_j, int blk_l){
     first_fetch_ind = (opti_para.loop_order.loop_idc[2] == "k")?blk_i:blk_l;
     if((bblk->AddrIdx() > mem.sp_regions["B"].num_blks-1) || (first_fetch_ind == 0)){
       //cout << "load b block" << endl;
-      cycle += load_store->loadDblk(bblk);
+      if(load_latency.find("B") == load_latency.end()){
+	cout << "need to load B block " << endl;
+        load_latency["B"] = load_store->loadDblk(bblk);
+      }
+      cycle += load_latency["B"];
       num_dram_read += bblk->size;
     }
     mn.b_sp_addr = bblk->sp_addr;
@@ -60,7 +67,11 @@ void CGScheduling::LoopIteration(int blk_i, int blk_j, int blk_l){
     first_fetch_ind = (opti_para.loop_order.loop_idc[2] == "m")?blk_j:blk_i;
     if((cblk->AddrIdx() > mem.sp_regions["C"].num_blks-1) || (first_fetch_ind == 0)){
       //cout << "load c block" << endl;
-      cycle += load_store->loadDblk(cblk);
+      if(load_latency.find("C") == load_latency.end()){
+	cout << "need to load C block " << endl; 
+        load_latency["C"] = load_store->loadDblk(cblk);
+      }
+      cycle += load_latency["C"];
       num_dram_read += cblk->size;
     }
     mn.c_sp_addr = cblk->sp_addr;
@@ -75,7 +86,11 @@ void CGScheduling::LoopIteration(int blk_i, int blk_j, int blk_l){
     //store cblk if needed
     if((cblk->AddrIdx() > mem.sp_regions["C"].num_blks-1) || (blk_l == blk_k-1)){
       //cout << "store c block" << endl;
-      cycle += load_store->storeDblk(cblk);
+      if(store_latency.find("C") == store_latency.end()){
+	cout << "need to store C block " << endl; 
+        store_latency["C"] = load_store->storeDblk(cblk);
+      }
+      cycle += store_latency["C"];
       num_dram_write += cblk->size;
     }
     mn.post_dblks.push_back(cblk_idx);
@@ -86,8 +101,7 @@ void CGScheduling::MacroNodeGen(){
   //only for matrix multiplication
 
   //generate mns
-  mn_temp = new MacroNodeTemplate("mtxmul temp");
-  mn_temp->MN_mtxmul(opti_para.blk_dimi, opti_para.blk_dimj, opti_para.blk_diml, true);
+  mn_temp = new MN_mtxmul(opti_para.blk_dim["i"], opti_para.blk_dim["j"], opti_para.blk_dim["l"], true);
   mn_temps.push_back(mn_temp);
 
   //transaction 
@@ -100,9 +114,9 @@ void CGScheduling::MacroNodeGen(){
   cycle = 0;
   num_dram_read = 0;
   num_dram_write = 0;
-  blk_m = opti_para.m_ex/opti_para.blk_dimi;
-  blk_n = opti_para.n_ex/opti_para.blk_dimj;
-  blk_k = opti_para.k_ex/opti_para.blk_diml;
+  blk_m = opti_para.num_blk["i"];
+  blk_n = opti_para.num_blk["j"];
+  blk_k = opti_para.num_blk["l"];
 
   if(opti_para.loop_order.loop_idc == array<string,3>{"m","n","k"}){
     for(int blk_i=0; blk_i<blk_m; blk_i++){

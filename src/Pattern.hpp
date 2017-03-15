@@ -11,9 +11,7 @@
 
 //#include "Hardware.hpp"
 //#include "Util.hpp"
-#include "DataBlock.hpp"
 #include "Tile.hpp"
-#include "MacroNode.hpp"
 
 using namespace std;
 
@@ -33,7 +31,7 @@ class Pattern{
   virtual ~Pattern(){};
   void PrintNumOps();
   void PrintOps(vector<Operation> &ops);
-  virtual void TileGen(vector<Tile> &tiles, vector<Operation> &ops);
+  virtual void TileGen(vector<Tile> &tiles, vector<Operation> &ops){};
   //virtual void MacroNodeGen(vector<MacroNode*> &mns, int mn_dimi, int mn_dimj){};
   //virtual void MacroNodeGen(int mn_dimi, int mn_dimj, int mn_diml){};
 
@@ -42,14 +40,11 @@ class Pattern{
   vector<int> tiles_idx;	
   vector<PatternUnit> pus;
 
-  vector<shared_ptr<MacroNode>> mns;
-  vector<shared_ptr<DataBlock>> dblks;
-
   bool row_major_mn = false;
   ComputeBlock* cb;
   string name;
   string description;
-  string cp;
+  string mn_name;
 
   int m;
   int n;
@@ -72,12 +67,12 @@ class Pattern{
 
 class Load_vec: public Pattern{
   public:
-    Load_vec(vector<Operation> &ops, string &in_cp, int n, vector<int> &out_vec);
+    Load_vec(vector<Operation> &ops, string &in_mn_name, int n, vector<int> &out_vec);
 };
 
 class Load_mtx: public Pattern{
   public:
-    Load_mtx(vector<Operation> &ops, string &in_cp, int in_m, int in_n, vector<vector<int>> &out_mtx);
+    Load_mtx(vector<Operation> &ops, string &in_mn_name, int in_m, int in_n, vector<vector<int>> &out_mtx);
     ~Load_mtx();
     void TileGen(vector<Tile> &tiles, vector<Operation> &ops);
     //void MacroNodeGen(vector<MacroNode*> &mns, int mn_dimi, int mn_dimj);
@@ -89,59 +84,67 @@ class Load_mtx: public Pattern{
 
 class Store_vec: public Pattern{
   public:
-    Store_vec(vector<Operation> &ops, string &in_cp, const vector<int> &in_vec);
+    Store_vec(vector<Operation> &ops, string &in_mn_name, const vector<int> &in_vec);
 };
 
 class Store_mtx: public Pattern{
   public:
-    Store_mtx(vector<Operation> &ops, string &in_cp, const vector<vector<int>> &in_mtx);
+    Store_mtx(vector<Operation> &ops, string &in_mn_name, const vector<vector<int>> &in_mtx);
     ~Store_mtx();
     void TileGen(vector<Tile> &tiles, vector<Operation> &ops);
     //void MacroNodeGen(vector<MacroNode*> &mns, int mn_dimi, int mn_dimj);
     //void MacroNodeGen(int mn_dimi, int mn_dimj, int mn_diml);
     //void MacroNodeGen_tile(int mn_dimi, int mn_dimj, int mn_diml);
     //void MacroNodeGen_idxorder(vector<MacroNode*> &mns);
-   
+};
+
+class Copy_vec: public Pattern{
+  public:
+    Copy_vec(vector<Operation> &ops, string &in_mn_name, const vector<int> &in_vec, vector<int> &out_vec);
+    ~Copy_vec(){};
+    void TileGen(vector<Tile> &tiles, vector<Operation> &ops);
 };
 
 class ColSum: public Pattern{
   public:
-    ColSum(vector<Operation> &ops, string &in_cp, const vector<vector<int>> &in_mtx, vector<int> &out_vec);
+    ColSum(vector<Operation> &ops, string &in_mn_name, const vector<vector<int>> &in_mtx, vector<int> &out_vec);
 };
 
 class Div_vec: public Pattern{
   public:
-    Div_vec(vector<Operation> &ops, string &in_cp, const vector<int> &in_vec1, const vector<int> &in_vec2, vector<int> &out_vec);
+    Div_vec(vector<Operation> &ops, string &in_mn_name, const vector<int> &in_vec1, const vector<int> &in_vec2, vector<int> &out_vec);
+    ~Div_vec(){};
+    void TileGen(vector<Tile> &tiles, vector<Operation> &ops);
 };
 
 class Div_mtx: public Pattern{
   public:
-    Div_mtx(vector<Operation> &ops, string &in_cp, const vector<vector<int>> &in_mtx1, const vector<vector<int>> &in_mtx2, vector<vector<int>> &out_mtx);
+    Div_mtx(vector<Operation> &ops, string &in_mn_name, const vector<vector<int>> &in_mtx1, const vector<vector<int>> &in_mtx2, vector<vector<int>> &out_mtx);
 };
 
 class Sub_mtx: public Pattern{
   public:
-    Sub_mtx(vector<Operation> &ops, string &in_cp, const vector<vector<int>> &in_mtx1, const vector<vector<int>> &in_mtx2, vector<vector<int>> &out_mtx);
+    Sub_mtx(vector<Operation> &ops, string &in_mn_name, const vector<vector<int>> &in_mtx1, const vector<vector<int>> &in_mtx2, vector<vector<int>> &out_mtx);
 };
 
 class SquareAcc_vec: public Pattern{
   public:
-    SquareAcc_vec(vector<Operation> &ops, string &in_cp, const vector<int> &in_vec, int &out_s);
+    SquareAcc_vec(vector<Operation> &ops, string &in_mn_name, const vector<int> &in_vec, int &out_s);
 };
 
 class SquareAcc_mtx: public Pattern{
   public:
-    SquareAcc_mtx(vector<Operation> &ops, string &in_cp, const vector<vector<int>> &in_mtx, vector<int> &out_vec);
+    SquareAcc_mtx(vector<Operation> &ops, string &in_mn_name, const vector<vector<int>> &in_mtx, vector<int> &out_vec);
 };
 
 class DivRoot: public Pattern{
   public:
-    DivRoot(vector<Operation> &ops, string &in_cp, const vector<int> &in_vec1, const vector<int> &in_vec2, vector<int> &out_vec);
+    DivRoot(vector<Operation> &ops, string &in_mn_name, const vector<int> &in_vec1, const vector<int> &in_vec2, vector<int> &out_vec);
 };
 
 class MtxMul: public Pattern{
   public:
-    MtxMul(vector<Operation> &ops, string &in_cp, const vector<vector<int>> &in_mtx1, const vector<vector<int>> &in_mtx2, vector<vector<int>> &out_mtx);
+    MtxMul(vector<Operation> &ops, string &in_mn_name, const vector<vector<int>> &in_mtx1, const vector<vector<int>> &in_mtx2, vector<vector<int>> &out_mtx);
     ~MtxMul();
     void TileGen(vector<Tile> &tiles, vector<Operation> &ops);
     //void MacroNodeGen_idxorder(vector<MacroNode*> &mns);
@@ -151,30 +154,30 @@ class MtxMul: public Pattern{
 };
 
 //X*Y+Z
-class MtxMulAdd: public Pattern{
+class SuborAddMtxMul: public Pattern{
   public:
-    MtxMulAdd(vector<Operation> &ops, string &in_cp, const vector<vector<int>> &in_mtx1, const vector<vector<int>> &in_mtx2, const vector<vector<int>> &in_mtx3, vector<vector<int>> &out_mtx);
+    SuborAddMtxMul(bool is_add, vector<Operation> &ops, string &in_mn_name, const vector<vector<int>> &in_mtx1, const vector<vector<int>> &in_mtx2, const vector<vector<int>> &in_mtx3, vector<vector<int>> &out_mtx);
     void TileGen(vector<Tile> &tiles, vector<Operation> &ops);
 };
 
 class Root_s: public Pattern{
   public:
-    Root_s(vector<Operation> &ops, string &in_cp, int in_s, int &out_s);
+    Root_s(vector<Operation> &ops, string &in_mn_name, int in_s, int &out_s);
 };
 
 class Div_s: public Pattern{
   public:
-    Div_s(vector<Operation> &ops, string &in_cp, int in_s1, int in_s2, int &out_s);
+    Div_s(vector<Operation> &ops, string &in_mn_name, int in_s1, int in_s2, int &out_s);
 };
 
 class Jacobi_cs: public Pattern{
   public:
-    Jacobi_cs(vector<Operation> &ops, string &in_cp, int app, int aqq, int apq, int &c, int &s, int &ns);
+    Jacobi_cs(vector<Operation> &ops, string &in_mn_name, int app, int aqq, int apq, int &c, int &s, int &ns);
 };
 
 class Givens_cs: public Pattern{
   public:
-    Givens_cs(vector<Operation> &ops, string &in_cp, int arp, int arq, bool zero_arp, int &c, int &s, int &ns);
+    Givens_cs(vector<Operation> &ops, string &in_mn_name, int arp, int arq, bool zero_arp, int &c, int &s, int &ns);
 };
 
 

@@ -98,6 +98,7 @@ class MemoryTrack{
 
     void getOptiPara(Parameters* in_opti_para);
     void Slice2Dblks();
+    void Slice2Dblks_debug();
     void Slice2Dblks_buffer();
 
     DblkAddr getDblkAddr(string mtx_name, int blk_idx);
@@ -108,24 +109,7 @@ class MemoryTrack{
     //Parameters& opti_para;
     map<string, SPRegion> sp_regions;
 
-    int num_bank_a;
-    int num_bank_b;
-    int num_bank_c;
-
-    int ablk_interval;
-    int bblk_interval;
-    int cblk_interval;
-    
-    //slice mem into a,b,c regions
-    //vector length: number of blks in this region
-    //vector value: dblk being stored
-    //vector<int> a;
-    //vector<int> b;
-    //vector<int> c;
-    int num_region_a;
-    int num_region_b;
-    int num_region_c;
-
+    map<string, int> blk_interval;
 };
 
 #endif

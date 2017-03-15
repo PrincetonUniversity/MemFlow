@@ -230,72 +230,26 @@ void MemoryTrack::getOptiPara(Parameters* in_opti_para){
 }
 
 void MemoryTrack::Slice2Dblks(){
-  sp_regions["A"] = {0, opti_para->num_bank_a-1, 0};
-  sp_regions["B"] = {opti_para->num_bank_a, opti_para->num_bank_a+opti_para->num_bank_b-1, 0};
-  sp_regions["C"] = {opti_para->num_bank_a+opti_para->num_bank_b, opti_para->num_bank_a+opti_para->num_bank_b+opti_para->num_bank_c-1, 0};
+  cout << "in dblk slicing" << endl;
+  int bank_start = 0;
+  for(auto &i: opti_para->num_bank){
+    sp_regions[i.first] = {bank_start, bank_start+i.second-1, 0};
+    bank_start += i.second;
 
-  int ablk = opti_para->blk_dimi*opti_para->blk_diml;
-  int bblk = opti_para->blk_dimj*opti_para->blk_diml;
-  int cblk = opti_para->blk_dimi*opti_para->blk_dimj;
-
-  ablk_interval = (ablk%opti_para->num_bank_a==0)?ablk/opti_para->num_bank_a: ablk/opti_para->num_bank_a+1;
-  bblk_interval = (bblk%opti_para->num_bank_b==0)?bblk/opti_para->num_bank_b: bblk/opti_para->num_bank_b+1;
-  cblk_interval = (cblk%opti_para->num_bank_c==0)?cblk/opti_para->num_bank_c: cblk/opti_para->num_bank_c+1;
-
-  sp_regions["A"].num_blks = Memory::membanks[0].size/ablk_interval;
-  sp_regions["B"].num_blks = Memory::membanks[0].size/bblk_interval;
-  sp_regions["C"].num_blks = Memory::membanks[0].size/cblk_interval;
-
+    blk_interval[i.first] = (opti_para->blk_size[i.first]%i.second==0)?opti_para->blk_size[i.first]/i.second: opti_para->blk_size[i.first]/i.second+1;
+    sp_regions[i.first].num_blks = Memory::membanks[0].size/blk_interval[i.first];
+  }
 }
 
-void MemoryTrack::Slice2Dblks_buffer(){
-  sp_regions["A"] = {0, opti_para->num_bank_a-1, 0};
-  sp_regions["A1"] = {opti_para->num_bank_a, 2*opti_para->num_bank_a-1, 0};
-  sp_regions["B"] = {2*opti_para->num_bank_a, 2*opti_para->num_bank_a+opti_para->num_bank_b-1, 0};
-  sp_regions["B1"] = {2*opti_para->num_bank_a+opti_para->num_bank_b, 2*opti_para->num_bank_a+2*opti_para->num_bank_b-1, 0};
-  sp_regions["C"] = {2*opti_para->num_bank_a+2*opti_para->num_bank_b, 2*opti_para->num_bank_a+2*opti_para->num_bank_b+opti_para->num_bank_c-1, 0};
-  sp_regions["C1"] = {2*opti_para->num_bank_a+2*opti_para->num_bank_b+opti_para->num_bank_c, 2*opti_para->num_bank_a+2*opti_para->num_bank_b+2*opti_para->num_bank_c-1, 0};
 
-  cout << "sp region a start bank " << sp_regions["A"].start_bank << endl;
-  cout << "sp region a1 start bank " << sp_regions["A1"].start_bank << endl;
-  cout << "sp region b start bank " << sp_regions["B"].start_bank << endl;
-  cout << "sp region b1 start bank " << sp_regions["B1"].start_bank << endl;
-  cout << "sp region c start bank " << sp_regions["C"].start_bank << endl;
-  cout << "sp region c1 start bank " << sp_regions["C1"].start_bank << endl;
-
-  int ablk = opti_para->blk_dimi*opti_para->blk_diml;
-  int bblk = opti_para->blk_dimj*opti_para->blk_diml;
-  int cblk = opti_para->blk_dimi*opti_para->blk_dimj;
-
-  ablk_interval = (ablk%opti_para->num_bank_a==0)?ablk/opti_para->num_bank_a: ablk/opti_para->num_bank_a+1;
-  bblk_interval = (bblk%opti_para->num_bank_b==0)?bblk/opti_para->num_bank_b: bblk/opti_para->num_bank_b+1;
-  cblk_interval = (cblk%opti_para->num_bank_c==0)?cblk/opti_para->num_bank_c: cblk/opti_para->num_bank_c+1;
-
-  cout << "a blk " << ablk << endl;
-  cout << "b blk " << bblk << endl;
-  cout << "c blk " << cblk << endl;
-  cout << "num bank a " << opti_para->num_bank_a << endl;
-  cout << "num bank b " << opti_para->num_bank_b << endl;
-  cout << "num bank c " << opti_para->num_bank_c << endl;
-  cout << "ablk interval " << ablk_interval << endl;
-  cout << "bblk interval " << bblk_interval << endl;
-  cout << "cblk interval " << cblk_interval << endl;
-
-  sp_regions["A"].num_blks = Memory::membanks[0].size/ablk_interval;
-  sp_regions["A1"].num_blks = Memory::membanks[0].size/ablk_interval;
-  sp_regions["B"].num_blks = Memory::membanks[0].size/bblk_interval;
-  sp_regions["B1"].num_blks = Memory::membanks[0].size/bblk_interval;
-  sp_regions["C"].num_blks = Memory::membanks[0].size/cblk_interval;
-  sp_regions["C1"].num_blks = Memory::membanks[0].size/cblk_interval;
-
-  cout << "a mem dblk num: " << sp_regions["A"].num_blks << endl;
-  cout << "a1 mem dblk num: " << sp_regions["A1"].num_blks << endl;
-  cout << "b mem dblk num: " << sp_regions["B"].num_blks << endl;
-  cout << "b1 mem dblk num: " << sp_regions["B1"].num_blks << endl;
-  cout << "c mem dblk num: " << sp_regions["C"].num_blks << endl;
-  cout << "c1 mem dblk num: " << sp_regions["C1"].num_blks << endl;
+void MemoryTrack::Slice2Dblks_debug(){
+  cout << "in dblk slicing" << endl;
+  int bank_start = 0;
+  for(auto &i: opti_para->num_bank){
+    sp_regions[i.first] = {bank_start, bank_start+i.second-1, 1};
+    bank_start += i.second;
+  }
 }
-
 /*
 array<int,2> MemoryTrack::getAddr_a_ele(DblkAddr dblk_addr, int m, int n, int i, int j){
   array<int,2> addr;
@@ -372,35 +326,22 @@ array<int,2> MemoryTrack::getAddr_c_ele(DblkAddr dblk_addr, int m, int n, int i,
 
 DblkAddr MemoryTrack::getDblkAddr(string mtx_name, int blk_idx){
   DblkAddr da;
-  if(mtx_name == "A"){
-    da.region = "A";
-    da.base = blk_idx*ablk_interval;
-  }
-
-  if(mtx_name == "B"){
-    da.region = "B";
-    da.base = blk_idx*bblk_interval;
-  }
-
-  if(mtx_name == "C"){
-    da.region = "C";
-    da.base = blk_idx*cblk_interval;
-  }
+  da.region = mtx_name;
+  da.base = blk_idx*blk_interval[mtx_name];
   return da;
 }
+
 
 
 void MemoryTrack::PrintInfo(){
   cout << endl << "SRAM parameters: " << endl;
   cout << "Port allocation: " << endl;
-  cout << "    #ports for A: " << opti_para->subblk_dimi*opti_para->subblk_diml << endl;
-  cout << "    #ports for B: " << opti_para->subblk_dimj*opti_para->subblk_diml << endl;
-  cout << "    #ports for C: " << 2*opti_para->subblk_dimi*opti_para->subblk_dimj << endl;
+  for(auto &i: opti_para->num_port){
+    cout << "    #ports for " << i.first << ": " << i.second << endl;
+  }
   cout << "Bank allocation: " << endl;
-  cout << "    #banks for A: " << opti_para->num_bank_a << "(" << sp_regions["A"].start_bank << "-" << sp_regions["A"].end_bank << ")" << endl;
-  cout << "       #Ablks can be allocated: " << sp_regions["A"].num_blks << endl;
-  cout << "    #banks for B: " << opti_para->num_bank_b << "(" << sp_regions["B"].start_bank << "-" << sp_regions["B"].end_bank << ")" << endl;
-  cout << "       #Bblks can be allocated: " << sp_regions["B"].num_blks << endl;
-  cout << "    #banks for C: " << opti_para->num_bank_c << "(" << sp_regions["C"].start_bank << "-" << sp_regions["C"].end_bank << ")" << endl;
-  cout << "       #Cblks can be allocated: " << sp_regions["C"].num_blks << endl;
+  for(auto &i: sp_regions){
+    cout << "    #banks for " << i.first << ": " << opti_para->num_bank[i.first] << "(" << i.second.start_bank << "-" << i.second.end_bank << ")" << endl;
+    cout << "      #blks can be allocated: " << i.second.num_blks << endl;
+  }
 }

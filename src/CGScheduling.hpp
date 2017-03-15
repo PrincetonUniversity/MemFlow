@@ -11,6 +11,8 @@
 
 using namespace std;
 
+extern vector<MacroNodeTemplate*> mn_temps;
+
 class CGScheduling{
   public:
     CGScheduling();
@@ -49,8 +51,11 @@ class CGScheduling{
    
     int num_dblk_write;
 
-    int load_latency;
-    int store_latency;
+    //int load_latency;
+    //int store_latency;
+
+    map<string, uint64_t> load_latency;
+    map<string, uint64_t> store_latency;
 };
 
 #endif

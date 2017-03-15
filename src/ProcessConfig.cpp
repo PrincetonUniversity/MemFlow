@@ -107,7 +107,9 @@ void freeConfig(){
   }
 
   for(auto it=ComputeBlockLib::cbs.begin(); it!=ComputeBlockLib::cbs.end(); it++){
-    delete it->second;
+    for(auto it1=it->second.begin(); it1!=it->second.end(); it1++){
+      delete it1->second;
+    }
   }
 
   delete dram;

@@ -129,65 +129,47 @@ void LoopOrder::setDblkSPAddrIdx(){
 }
 
 Parameters::Parameters(){
-  blk_dimi = 0;
-  blk_dimj = 0;
-  blk_diml = 0;
-
-  subblk_dimi = 0;
-  subblk_dimj = 0;
-  subblk_diml = 0;
-
-  k_stage = 0;
-  num_cb = 0;
-
-  num_bank_a = 0;
-  num_bank_b = 0;
-  num_bank_c = 0;
-
-  m_ex = 0;
-  n_ex = 0;
-  k_ex = 0;
-
 }
 
 void Parameters::PrintInfo(){
-  int blk_m = m_ex/blk_dimi;
-  int blk_n = n_ex/blk_dimj;
-  int blk_k = k_ex/blk_diml;
-  
-  cout << endl << "Matrix Multiplication" << endl;
-  cout << "m: " << m_ex << endl;
-  cout << "n: " << n_ex << endl;
-  cout << "k: " << k_ex << endl;
+  cout << endl << "Extended input size: " << endl;
+  for(auto &i: ex_input_size){
+    cout << "ex_" << i.first << ": " << i.second << endl;
+  }
 
   cout << endl << "First blocking level: " << endl;
   cout << "Block dimension: " << endl;
-  cout << "    blk_dim_i: " << blk_dimi << endl;
-  cout << "    blk_dim_j: " << blk_dimj << endl;
-  cout << "    blk_dim_l: " << blk_diml << endl;
+  for(auto &i: blk_dim){
+    cout << "    blk_dimi_" << i.first << ": " << i.second << endl;
+  }
   cout << "Data block size: " << endl;
-  cout << "    block of A (blk_dim_i*blk_diml): " << blk_dimi*blk_diml << endl;
-  cout << "    block of B (blk_dim_j*blk_diml): " << blk_dimj*blk_diml << endl;
-  cout << "    block of C (blk_dim_i*blk_dimj): " << blk_dimi*blk_dimj << endl;
+  for(auto &i: blk_size){
+    cout << "    block size of " << i.first << ": " << i.second << endl;
+  }
   cout << "Number of data blocks: " << endl;
-  cout << "    number of blocks in A: " << blk_m << "x" << blk_k << "=" << blk_m*blk_k << endl;
-  cout << "    number of blocks in B: " << blk_k << "x" << blk_n << "=" << blk_k*blk_n << endl;
-  cout << "    number of blocks in C: " << blk_m << "x" << blk_n << "=" << blk_m*blk_n << endl;
+  for(auto &i: num_blk){
+    cout << "    num_blk_" << i.first << ": " << i.second << endl;
+  }
 
   cout << endl << "Second blocking level: " << endl;
   cout << "Sub-block dimension: " << endl;
-  cout << "    subblk_dim_i: " << subblk_dimi << endl;
-  cout << "    subblk_dim_j: " << subblk_dimj << endl;
-  cout << "    subblk_dim_l: " << subblk_diml << endl;
+  for(auto &i: subblk_dim){
+    cout << "   subblk_dim_" << i.first << ": " << i.second << endl;
+  }
 
   cout << endl << "Compute block parameters: " << endl;
-  cout << "Number of stages: " << subblk_diml << endl;
-  cout << "Parallelization: " << subblk_dimi*subblk_dimj << endl;
+  for(auto &i: num_cb){
+    for(auto &j: i.second){
+      cout << "Parallelization of cb " << i.first+"_"+j.first << ": " << j.second << endl;
+    }
+  }
 
   cout << endl << "Loop order: " << endl;
   cout << loop_order.loop_idc[0] << "->" << loop_order.loop_idc[1] << "->" << loop_order.loop_idc[2] << endl;
 
   cout << endl << "Estimated number of spills: " << num_spill << endl;
+  cout << "Estimated #compute cycles per block: " << blk_compute_cycles << endl;
+  cout << "Estimated #compute cycles: " << total_compute_cycles << endl;
 }
 
 OptiMacroNode::OptiMacroNode(int in_m, int in_n, int in_k, Parameters& in_opti_para):opti_para(in_opti_para){
@@ -234,6 +216,8 @@ void OptiMacroNode::genSubblkSet(){
 	int min_bank = MinBank(subblk_dimi, subblk_dimj, subblk_diml);
 	if(min_bank < Memory::num_bank){
 	  int min_port = MinPort(subblk_dimi, subblk_dimj, subblk_diml);
+	  //cout << endl << "min port" << min_port << endl;
+	  //cout << "num port used " << num_port_used << endl;
 	  if(min_port >= num_port_used){
 	    array<int,3> subblk_dim = {subblk_dimi, subblk_dimj, subblk_diml};
 	    if(min_port > num_port_used){
@@ -252,9 +236,21 @@ void OptiMacroNode::genSubblkSet(){
 }
 
 
-unsigned long long OptiMacroNode::spill(LoopOrder& loop_order){
-  unsigned long long spill1 = spill_type1(loop_order.dblk1_size, loop_order.num_dblk1_mem, loop_order.num_dblk1_need, loop_order.num_reuse1, loop_order.num_iterate);
-  unsigned long long spill2 = spill_type2(loop_order.dblk2_size, loop_order.num_dblk2_mem, loop_order.num_dblk2_need, loop_order.num_reuse2);
+unsigned long long OptiMacroNode::spill(LoopOrder& loop_order, unsigned long long& spill1, unsigned long long& spill2){
+  //cout << "spill type1" << endl;
+  //cout << "blk size " << loop_order.dblk1_size << endl;
+  //cout << "#blk in mem " << loop_order.num_dblk1_mem << endl;
+  //cout << "#blk need " << loop_order.num_dblk1_need << endl;
+  //cout << "blk reuse " << loop_order.num_reuse1 << endl;
+  //cout << "num iterate " << loop_order.num_iterate << endl;
+  spill1 = spill_type1(loop_order.dblk1_size, loop_order.num_dblk1_mem, loop_order.num_dblk1_need, loop_order.num_reuse1, loop_order.num_iterate);
+
+  //cout << "spill type2" << endl;
+  //cout << "blk size " << loop_order.dblk2_size << endl;
+  //cout << "#blk in mem " << loop_order.num_dblk2_mem << endl;
+  //cout << "#blk need " << loop_order.num_dblk2_need << endl;
+  //cout << "blk reuse " << loop_order.num_reuse2 << endl;
+  spill2 = spill_type2(loop_order.dblk2_size, loop_order.num_dblk2_mem, loop_order.num_dblk2_need, loop_order.num_reuse2);
   
   unsigned long long spill = spill1+spill2;
   return spill;
@@ -267,7 +263,8 @@ unsigned long long OptiMacroNode::spill_type1(int blk_size, int num_dblk_mem, in
     spill = 0;
   }
   else{
-    spill = blk_size*(num_dblk_need+1-num_dblk_mem);
+    spill = max(num_dblk_need-num_dblk_mem, 0);
+    spill = spill*blk_size;
     spill = spill*(num_reuse-1);
     spill = spill*iterate;
   }
@@ -282,23 +279,20 @@ unsigned long long OptiMacroNode::spill_type2(int blk_size, int num_dblk_mem, in
     spill = 0;
   }
   else{
-    spill = blk_size*(num_dblk_need+1-num_dblk_mem);
+    spill = max(num_dblk_need-num_dblk_mem, 0);
+    spill = spill*blk_size;
     spill = spill*(num_reuse-1);
   }
   return spill;
 }
 
-unsigned long long OptiMacroNode::getPerf(){
-  unsigned long long perf;
+void OptiMacroNode::getPerf(unsigned long long& perf, unsigned long long& blk_perf){
 
   int num_subblk_level = blk_dimi_sb*blk_dimj_sb;
   int latency_cb = (subblk_diml-1)+3+1+2;
 
-  int perf_blk = max(num_subblk_level, latency_cb)*blk_diml_sb+min(num_subblk_level,latency_cb)-1;
-  
-  perf = perf_blk*blk_m*blk_n*blk_k;
-  
-  return perf;
+  blk_perf = max(num_subblk_level, latency_cb)*blk_diml_sb+min(num_subblk_level,latency_cb)-1;
+  perf = blk_perf*blk_m*blk_n*blk_k;
 }
 
 void OptiMacroNode::optiPara(){
@@ -306,7 +300,7 @@ void OptiMacroNode::optiPara(){
   perf = ULLONG_MAX;
   
   genSubblkSet();
-  //cout << "subblk dim sets: " << endl;
+  //cout << endl << "***********" << "subblk dim sets: " << endl;
   //for(auto &i: sb_dim_set){
   //  cout << i[0] << " " << i[1] << " " << i[2] << endl;
   //}
@@ -315,6 +309,11 @@ void OptiMacroNode::optiPara(){
 	  subblk_dimi = i[0];
 	  subblk_dimj = i[1];
 	  subblk_diml = i[2];
+
+	  //cout << endl << "*************subblk" << endl;
+	  //cout << "subblk_dimi " << subblk_dimi << endl;
+	  //cout << "subblk_dimj " << subblk_dimj << endl;
+	  //cout << "subblk_diml " << subblk_diml << endl;
 
 	  int port_per_bank = 2;
 	  int num_port_a = subblk_diml*subblk_dimi;
@@ -325,6 +324,7 @@ void OptiMacroNode::optiPara(){
 
 	  int num_port_c = 2*subblk_dimi*subblk_dimj;
 	  num_bank_c = (num_port_c%port_per_bank==0)?num_port_c/port_per_bank:num_port_c/port_per_bank+1;
+
 
 	  int subblk_m = (m%subblk_dimi==0)?m/subblk_dimi:m/subblk_dimi+1;
 	  int subblk_n = (n%subblk_dimj==0)?n/subblk_dimj:n/subblk_dimj+1;
@@ -366,8 +366,23 @@ void OptiMacroNode::optiPara(){
 		if((num_ablk_mem >= 1)
 		    && (num_bblk_mem >= 1)
 		    && (num_cblk_mem >= 1)){
+		    
+		  //cout << endl << "blk_dimi " << blk_dimi << endl;
+		  //cout << "blk_dimj " << blk_dimj << endl;
+		  //cout << "blk_diml " << blk_diml << endl;
+		  //cout << "blk_m " << blk_m << endl;
+		  //cout << "blk_n " << blk_n << endl;
+		  //cout << "blk_k " << blk_k << endl;
 	 	
 		  unsigned long long cur_spill;
+		  unsigned long long cur_spill1;
+		  unsigned long long cur_spill2;
+	
+		  LoopOrder order("m","n","k");
+		  order.setupLoopOrder(this);
+		  cur_spill = spill(order, cur_spill1, cur_spill2);
+		  loop_order = order;
+
 		  //find the smallest num_dblk
 		  if((num_ablk_mem <= num_bblk_mem) && (num_ablk_mem <= num_cblk_mem)){
 		    LoopOrder order1("m","k","n");
@@ -375,16 +390,25 @@ void OptiMacroNode::optiPara(){
 		    order1.setupLoopOrder(this);
 		    order2.setupLoopOrder(this);
 
-		    unsigned long long spill1 = spill(order1);
-		    unsigned long long spill2 = spill(order2);
+		    unsigned long long spill11;
+		    unsigned long long spill12;
+		    unsigned long long spill1 = spill(order1, spill11, spill12);
+
+		    unsigned long long spill21;
+		    unsigned long long spill22;
+		    unsigned long long spill2 = spill(order2, spill21, spill22);
 
 		    if(spill1 <= spill2){
 		      cur_spill = spill1;
 		      loop_order = order1;
+		      cur_spill1 = spill11;
+		      cur_spill2 = spill12;
 		    }
 		    else{
 		      cur_spill = spill2;
 		      loop_order = order2;
+		      cur_spill1 = spill21;
+		      cur_spill2 = spill22;
 		    }
 		  }
 		  else if((num_bblk_mem <= num_ablk_mem) && (num_bblk_mem <= num_cblk_mem)){
@@ -393,16 +417,25 @@ void OptiMacroNode::optiPara(){
 		    order1.setupLoopOrder(this);
 		    order2.setupLoopOrder(this);
 
-		    unsigned long long spill1 = spill(order1);
-		    unsigned long long spill2 = spill(order2);
+		    unsigned long long spill11;
+		    unsigned long long spill12;
+		    unsigned long long spill1 = spill(order1, spill11, spill12);
+		    
+		    unsigned long long spill21;
+		    unsigned long long spill22;
+		    unsigned long long spill2 = spill(order2, spill21, spill22);
 
 		    if(spill1 <= spill2){
 		      cur_spill = spill1;
 		      loop_order = order1;
+		      cur_spill1 = spill11;
+		      cur_spill2 = spill12;
 		    }
 		    else{
 		      cur_spill = spill2;
 		      loop_order = order2;
+		      cur_spill1 = spill21;
+		      cur_spill2 = spill22;
 		    }
 		  }
 		  else{
@@ -411,48 +444,87 @@ void OptiMacroNode::optiPara(){
 		    order1.setupLoopOrder(this);
 		    order2.setupLoopOrder(this);
 
-		    unsigned long long spill1 = spill(order1);
-		    unsigned long long spill2 = spill(order2);
+		    unsigned long long spill11;
+		    unsigned long long spill12;
+		    unsigned long long spill1 = spill(order1, spill11, spill12);
+		    
+		    unsigned long long spill21;
+		    unsigned long long spill22;
+		    unsigned long long spill2 = spill(order2, spill21, spill22);
 
 		    if(spill1 <= spill2){
 		      cur_spill = spill1;
 		      loop_order = order1;
+		      cur_spill1 = spill11;
+		      cur_spill2 = spill12;
 		    }
 		    else{
 		      cur_spill = spill2;
 		      loop_order = order2;
+		      cur_spill1 = spill21;
+		      cur_spill2 = spill22;
 		    }
 		  }
-
-		  unsigned long long cur_perf = getPerf();
-
+			
+		  unsigned long long cur_perf;
+		  unsigned long long cur_blk_perf;
+		  getPerf(cur_perf, cur_blk_perf);
+		    
+		  //cout << "num spill " << num_spill << endl;
+		  //cout << "cur spill " << cur_spill << endl;
+		  //cout << "cur spill1 " << cur_spill1 << endl;
+		  //cout << "cur spill2 " << cur_spill2 << endl;
+		  //cout << "cur perf " << cur_perf << endl;
+		
 		  if((cur_spill < num_spill)
 		      || ((cur_spill == num_spill) && (cur_perf < perf))){
-		    num_spill = cur_spill;
-		    perf = cur_perf;
+		    
+		    //cout << "replace !" << endl;
+		    //cout << endl << "blk_dimi " << blk_dimi << endl;
+		    //cout << "blk_dimj " << blk_dimj << endl;
+		    //cout << "blk_diml " << blk_diml << endl;
+		  
+		    //cout << "num spill " << num_spill << endl;
+		    //cout << "cur spill " << cur_spill << endl;
+		    //cout << "cur spill1 " << cur_spill1 << endl;
+		    //cout << "cur spill2 " << cur_spill2 << endl;
+		    //cout << "perf " << cur_perf << endl;
 
-		    opti_para.subblk_dimi = subblk_dimi;
-		    opti_para.subblk_dimj = subblk_dimj;
-		    opti_para.subblk_diml = subblk_diml;
-		    opti_para.blk_dimi = blk_dimi;
-		    opti_para.blk_dimj = blk_dimj;
-		    opti_para.blk_diml = blk_diml;
+		    opti_para.subblk_dim["i"] = subblk_dimi;
+		    opti_para.subblk_dim["j"] = subblk_dimj;
+		    opti_para.subblk_dim["l"] = subblk_diml;
+		    opti_para.blk_dim["i"] = blk_dimi;
+		    opti_para.blk_dim["j"] = blk_dimj;
+		    opti_para.blk_dim["l"] = blk_diml;
 
-		    opti_para.m_ex = blk_m*blk_dimi;
-		    opti_para.n_ex = blk_n*blk_dimj;
-		    opti_para.k_ex = blk_k*blk_diml;
+		    opti_para.ex_input_size["m"] = blk_m*blk_dimi;
+		    opti_para.ex_input_size["n"] = blk_n*blk_dimj;
+		    opti_para.ex_input_size["k"] = blk_k*blk_diml;
 
-		    opti_para.num_bank_a = num_bank_a;
-		    opti_para.num_bank_b = num_bank_b;
-		    opti_para.num_bank_c = num_bank_c;
-	        
-		    opti_para.blk_m = blk_m;
-		    opti_para.blk_n = blk_n;
-		    opti_para.blk_k = blk_k;
+		    opti_para.num_bank["A"] = num_bank_a;
+		    opti_para.num_bank["B"] = num_bank_b;
+		    opti_para.num_bank["C"] = num_bank_c;
+	
+		    opti_para.num_port["A"] = opti_para.subblk_dim["i"]*opti_para.subblk_dim["l"];
+		    opti_para.num_port["B"] = opti_para.subblk_dim["j"]*opti_para.subblk_dim["l"];
+		    opti_para.num_port["C"] = 2*opti_para.subblk_dim["i"]*opti_para.subblk_dim["j"];
 
+		    opti_para.num_blk["i"] = blk_m;
+		    opti_para.num_blk["j"] = blk_n;
+		    opti_para.num_blk["l"] = blk_k;
+
+		    opti_para.blk_size["A"] = opti_para.blk_dim["i"]*opti_para.blk_dim["l"];
+		    opti_para.blk_size["B"] = opti_para.blk_dim["j"]*opti_para.blk_dim["l"];
+		    opti_para.blk_size["C"] = opti_para.blk_dim["i"]*opti_para.blk_dim["j"];
+		    
 		    opti_para.loop_order = loop_order;
 
-		    opti_para.num_spill = num_spill;
+		    opti_para.num_spill = cur_spill;
+		    opti_para.total_compute_cycles = cur_perf;
+		    opti_para.blk_compute_cycles = cur_blk_perf;
+
+		    num_spill = cur_spill;
+		    perf = cur_perf;
 		  }
 
 		}
@@ -461,10 +533,87 @@ void OptiMacroNode::optiPara(){
 	  }
   }
 
-  opti_para.k_stage = opti_para.subblk_diml;
-  opti_para.num_cb = opti_para.subblk_dimi*opti_para.subblk_dimj;
+  opti_para.k_stage["mm"]["mul_acc"] = opti_para.subblk_dim["l"];
+  opti_para.num_cb["mm"]["mul_acc"] = opti_para.subblk_dim["i"]*opti_para.subblk_dim["j"];
   //cout << "num spill " << num_spill << endl;
   //cout << "perf " << perf << endl;
+}
+
+void OptiMacroNode::setPara(){
+  
+  //*****************App level parameters
+  opti_para.subblk_dim["lu_i"] = 3;
+  opti_para.subblk_dim["lu_j"] = 4;
+  
+  //opti_para.subblk_dim["mm_i"] = 6;
+  //opti_para.subblk_dim["mm_j"] = 2;
+  //opti_para.subblk_dim["mm_l"] = 1;
+  
+  opti_para.blk_dim["lu_i"] = 8;
+  opti_para.blk_dim["lu_j"] = 8;
+
+  //opti_para.blk_dim["mm_i"] = 48;
+  //opti_para.blk_dim["mm_j"] = 6;
+  //opti_para.blk_dim["mm_l"] = 2;
+
+  opti_para.ex_input_size["lu_m"] = opti_para.blk_dim["lu_i"];
+  opti_para.ex_input_size["lu_n"] = opti_para.blk_dim["lu_j"];
+
+  //opti_para.ex_input_size["mm_m"] = opti_para.blk_dim["mm_i"];
+  //opti_para.ex_input_size["mm_n"] = opti_para.blk_dim["mm_j"];
+  //opti_para.ex_input_size["mm_k"] = opti_para.blk_dim["mm_l"];
+
+  opti_para.num_port["LU_L"] = 3;
+  opti_para.num_port["LU_U"] = 4;
+  opti_para.num_port["LU_A"] = 24;
+
+  //opti_para.num_port["MM_A"] = 6;
+  //opti_para.num_port["MM_B"] = 2;
+  //opti_para.num_port["MM_C"] = 24;
+
+  opti_para.num_bank["LU_L"] = 2;
+  opti_para.num_bank["LU_U"] = 2;
+  opti_para.num_bank["LU_A"] = 12;
+
+  //opti_para.num_bank["MM_A"] = 3;
+  //opti_para.num_bank["MM_B"] = 1;
+  //opti_para.num_bank["MM_C"] = 12;
+
+  opti_para.num_blk["lu_i"] = 1;
+  opti_para.num_blk["lu_j"] = 1;
+
+  //opti_para.num_blk["mm_i"] = 1;
+  //opti_para.num_blk["mm_j"] = 1;
+  //opti_para.num_blk["mm_l"] = 1;
+  //***************************************
+
+  //*****************mn temp level parameters
+  opti_para.num_cb["lu"]["sub_mul"] = 12;
+  opti_para.k_stage["lu"]["sub_mul"] = 1;
+  
+  opti_para.num_cb["lu"]["copy"] = 4;
+  opti_para.num_cb["lu"]["div"] = 3;
+  
+  opti_para.num_cb["lucpl"]["sub_mul"] = 12;
+  opti_para.k_stage["lucpl"]["sub_mul"] = 1;
+  opti_para.num_cb["lucpl"]["div"] = 3;
+
+  opti_para.num_cb["trs"]["div"] = 4;
+  opti_para.num_cb["trs"]["copy"] = 4;
+  opti_para.num_cb["trs"]["sub_mul"] = 12;
+  opti_para.k_stage["trs"]["sub_mul"] = 1;
+
+
+  opti_para.num_cb["mm"]["acc_mul"] = 12;
+  opti_para.k_stage["mm"]["acc_mul"] = 1;
+  
+  //opti_para.loop_order = LoopOrder("m","n","k");
+
+  //opti_para.num_spill = 0;
+  //opti_para.blk_compute_cycles = 0;
+  //opti_para.total_compute_cycles = 0;
+  //opti_para.num_spill = cur_spill;
+  //opti_para.total_compute_cycles = cur_perf;
 }
 
 

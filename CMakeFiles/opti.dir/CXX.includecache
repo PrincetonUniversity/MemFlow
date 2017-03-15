@@ -170,6 +170,18 @@ Callback.h
 string
 -
 
+/u/qnie/research/MappingOpti/ALG/src/././DRAMAccess.hpp
+map
+-
+list
+-
+../DRAMSim2/MemorySystem.h
+/u/qnie/research/MappingOpti/ALG/src/./DRAMSim2/MemorySystem.h
+../DRAMSim2/Transaction.h
+/u/qnie/research/MappingOpti/ALG/src/./DRAMSim2/Transaction.h
+../DRAMSim2/IniReader.h
+/u/qnie/research/MappingOpti/ALG/src/./DRAMSim2/IniReader.h
+
 /u/qnie/research/MappingOpti/ALG/src/././MacroNode.hpp
 vector
 -
@@ -197,8 +209,6 @@ string
 -
 Hardware.hpp
 /u/qnie/research/MappingOpti/ALG/src/././Hardware.hpp
-MacroNodeTemplate.hpp
-/u/qnie/research/MappingOpti/ALG/src/././MacroNodeTemplate.hpp
 Data.hpp
 /u/qnie/research/MappingOpti/ALG/src/././Data.hpp
 ../DRAMSim2/DRAMSim.h
@@ -217,6 +227,12 @@ Hardware.hpp
 /u/qnie/research/MappingOpti/ALG/src/./ComputationGraph.hpp
 vector
 -
+map
+-
+string
+-
+DataBlock.hpp
+/u/qnie/research/MappingOpti/ALG/src/./DataBlock.hpp
 Pattern.hpp
 /u/qnie/research/MappingOpti/ALG/src/./Pattern.hpp
 Util.hpp
@@ -276,6 +292,24 @@ Memory.hpp
 DRAMAccess.hpp
 /u/qnie/research/MappingOpti/ALG/src/./DRAMAccess.hpp
 
+/u/qnie/research/MappingOpti/ALG/src/./MacroNodeTemplate.hpp
+vector
+-
+string
+-
+memory
+-
+Tile.hpp
+/u/qnie/research/MappingOpti/ALG/src/./Tile.hpp
+Hardware.hpp
+/u/qnie/research/MappingOpti/ALG/src/./Hardware.hpp
+Memory.hpp
+/u/qnie/research/MappingOpti/ALG/src/./Memory.hpp
+DataBlock.hpp
+/u/qnie/research/MappingOpti/ALG/src/./DataBlock.hpp
+ComputationGraph.hpp
+/u/qnie/research/MappingOpti/ALG/src/./ComputationGraph.hpp
+
 /u/qnie/research/MappingOpti/ALG/src/./Memory.hpp
 vector
 -
@@ -287,10 +321,32 @@ OptiMacroNode.hpp
 /u/qnie/research/MappingOpti/ALG/src/./OptiMacroNode.hpp
 
 /u/qnie/research/MappingOpti/ALG/src/./OptiMacroNode.hpp
+map
+-
+string
+-
 iostream
 -
 Util.hpp
 /u/qnie/research/MappingOpti/ALG/src/./Util.hpp
+
+/u/qnie/research/MappingOpti/ALG/src/./Pattern.hpp
+vector
+-
+array
+-
+string
+-
+set
+-
+map
+-
+list
+-
+memory
+-
+Tile.hpp
+/u/qnie/research/MappingOpti/ALG/src/./Tile.hpp
 
 /u/qnie/research/MappingOpti/ALG/src/./Scheduling.hpp
 vector
@@ -317,8 +373,6 @@ string
 -
 Hardware.hpp
 /u/qnie/research/MappingOpti/ALG/src/./Hardware.hpp
-MacroNodeTemplate.hpp
-/u/qnie/research/MappingOpti/ALG/src/./MacroNodeTemplate.hpp
 Data.hpp
 /u/qnie/research/MappingOpti/ALG/src/./Data.hpp
 ../DRAMSim2/DRAMSim.h
@@ -338,6 +392,8 @@ Hardware.hpp
 vector
 -
 set
+-
+array
 -
 
 /u/qnie/research/MappingOpti/ALG/src/CGScheduling.cpp
@@ -387,6 +443,12 @@ ComputationGraph.hpp
 /u/qnie/research/MappingOpti/ALG/src/ComputationGraph.hpp
 vector
 -
+map
+-
+string
+-
+DataBlock.hpp
+/u/qnie/research/MappingOpti/ALG/src/DataBlock.hpp
 Pattern.hpp
 /u/qnie/research/MappingOpti/ALG/src/Pattern.hpp
 Util.hpp
@@ -483,6 +545,8 @@ vector
 -
 algorithm
 -
+climits
+-
 MacroNode.hpp
 /u/qnie/research/MappingOpti/ALG/src/MacroNode.hpp
 Setting.hpp
@@ -533,6 +597,8 @@ Memory.hpp
 /u/qnie/research/MappingOpti/ALG/src/Memory.hpp
 DataBlock.hpp
 /u/qnie/research/MappingOpti/ALG/src/DataBlock.hpp
+ComputationGraph.hpp
+/u/qnie/research/MappingOpti/ALG/src/ComputationGraph.hpp
 
 /u/qnie/research/MappingOpti/ALG/src/Memory.cpp
 vector
@@ -571,6 +637,10 @@ Setting.hpp
 /u/qnie/research/MappingOpti/ALG/src/Setting.hpp
 
 /u/qnie/research/MappingOpti/ALG/src/OptiMacroNode.hpp
+map
+-
+string
+-
 iostream
 -
 Util.hpp
@@ -613,12 +683,8 @@ list
 -
 memory
 -
-DataBlock.hpp
-/u/qnie/research/MappingOpti/ALG/src/DataBlock.hpp
 Tile.hpp
 /u/qnie/research/MappingOpti/ALG/src/Tile.hpp
-MacroNode.hpp
-/u/qnie/research/MappingOpti/ALG/src/MacroNode.hpp
 
 /u/qnie/research/MappingOpti/ALG/src/ProcessConfig.cpp
 string
@@ -639,6 +705,10 @@ ProcessConfig.hpp
 /u/qnie/research/MappingOpti/ALG/src/ProcessConfig.hpp
 Setting.hpp
 /u/qnie/research/MappingOpti/ALG/src/Setting.hpp
+MacroNodeTemplate.hpp
+/u/qnie/research/MappingOpti/ALG/src/MacroNodeTemplate.hpp
+vector
+-
 
 /u/qnie/research/MappingOpti/ALG/src/Scheduling.cpp
 iostream
@@ -699,8 +769,6 @@ string
 -
 Hardware.hpp
 /u/qnie/research/MappingOpti/ALG/src/Hardware.hpp
-MacroNodeTemplate.hpp
-/u/qnie/research/MappingOpti/ALG/src/MacroNodeTemplate.hpp
 Data.hpp
 /u/qnie/research/MappingOpti/ALG/src/Data.hpp
 ../DRAMSim2/DRAMSim.h
@@ -720,6 +788,8 @@ Hardware.hpp
 vector
 -
 set
+-
+array
 -
 
 /u/qnie/research/MappingOpti/ALG/src/main.cpp

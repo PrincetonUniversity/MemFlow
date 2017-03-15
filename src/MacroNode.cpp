@@ -1,6 +1,7 @@
 #include<iostream>
 #include<vector>
 #include<algorithm>
+#include<climits>
 
 #include "MacroNode.hpp"
 #include "Setting.hpp"
@@ -26,49 +27,55 @@ void LoadStoreDblk::genTransactions(DataBlock* dblk, queue<uint64_t>& trans_addr
   int j_start = dblk->blk_j*dblk->blk_dimj;
   int j_end = (dblk->blk_j+1)*dblk->blk_dimj;
 
-  map<uint64_t, map<int, int>> addr_bank;
+  //map<uint64_t, map<int, int>> addr_bank;
+  set<uint64_t> addr; 
   for(int i=i_start; i<i_end; i++){
     for(int j=j_start; j<j_end; j++){
       //get address for this element
-      cout << "i,j: " << i << "," << j << endl;
+      //cout << "i,j: " << i << "," << j << endl;
       uint64_t phy_addr = data_arrays[dblk->matrix_name]->genPhysicalAddr(i,j);
-      cout << "phy addr: " << phy_addr << endl;
+      //cout << "phy addr: " << phy_addr << endl;
       //transaction addr
       unsigned throwAwayBits = THROW_AWAY_BITS;
       phy_addr >>= throwAwayBits;
       phy_addr <<= throwAwayBits;
-      cout << "tran addr: " << phy_addr << endl;
-      
+      //cout << "tran addr: " << phy_addr << endl;
+    
+      if(addr.find(phy_addr) == addr.end()){
+        addr.insert(phy_addr);
+      }
       //get bank
-      int bank = dblk->getElementSPAddr(i,j)[0];
-      cout << "bank " << bank << endl;
+      //int bank = dblk->getElementSPAddr(i,j)[0];
+      //cout << "bank " << bank << endl;
 
-      if(addr_bank.find(phy_addr) == addr_bank.end()){
-        addr_bank[phy_addr][bank] = 1;
-      }
-      else{
-        if(addr_bank[phy_addr].find(bank) == addr_bank[phy_addr].end()){
-	  addr_bank[phy_addr][bank] = 1;
-	}
-	else{
-	  addr_bank[phy_addr][bank]++;
-	}
-      }
+      //if(addr_bank.find(phy_addr) == addr_bank.end()){
+      //  addr_bank[phy_addr][bank] = 1;
+      //}
+      //else{
+      //  if(addr_bank[phy_addr].find(bank) == addr_bank[phy_addr].end()){
+	//  addr_bank[phy_addr][bank] = 1;
+	//}
+	//else{
+	  //addr_bank[phy_addr][bank]++;
+	//}
+      //}
     }
   }
 
-  for(auto &tran: addr_bank){
-    auto max_bank_use = max_element(tran.second.begin(), tran.second.end(), tran.second.value_comp());
-    int num_batch = (max_bank_use->second%2==0)?max_bank_use->second/2:max_bank_use->second/2+1;
-    for(int i=0; i<num_batch; i++){
-      trans_addr.push(tran.first);
-    }
+  for(auto &i: addr){
+    trans_addr.push(i);
   }
+  //for(auto &tran: addr_bank){
+  //  auto max_bank_use = max_element(tran.second.begin(), tran.second.end(), tran.second.value_comp());
+  //  int num_batch = (max_bank_use->second%2==0)?max_bank_use->second/2:max_bank_use->second/2+1;
+  //  for(int i=0; i<num_batch; i++){
+  //    trans_addr.push(tran.first);
+  //  }
+  //}
 }
 
 int LoadStoreDblk::loadDblk(DataBlock* dblk){
   //cout << "create transaction receiver" << endl;
-  
   queue<uint64_t> trans_addr;
   genTransactions(dblk, trans_addr);
   //cout << "trans addr" << endl;
@@ -76,7 +83,7 @@ int LoadStoreDblk::loadDblk(DataBlock* dblk){
     //cout << hex << i << endl;
   //}
   
-  int numCycles = 10000;
+  int numCycles = INT_MAX;
   bool pendingTrans = false;
   Transaction* trans = NULL;
   void* data = NULL;
@@ -87,7 +94,7 @@ int LoadStoreDblk::loadDblk(DataBlock* dblk){
       if(!trans_addr.empty()){
         //new tran
 	uint64_t addr = trans_addr.front();
-	cout << "***tran addr " << addr << endl;
+	//cout << "***tran addr " << addr << endl;
 	trans_addr.pop();
 	trans = new Transaction(DATA_READ, addr, data);
 	if(!dram->addTransaction(false, addr)){
@@ -110,6 +117,9 @@ int LoadStoreDblk::loadDblk(DataBlock* dblk){
       }
     }
     dram->update();
+    //has callback
+    transactionReceiver.cpu_callback(i);
+
     //cout << "pending num: " << transactionReceiver.num_pending << endl;
     if(transactionReceiver.num_pending == 0){
       cout << "***************finish cycle " << i << endl;
@@ -128,14 +138,14 @@ int LoadStoreDblk::storeDblk(DataBlock* dblk){
   
   queue<uint64_t> trans_addr;
   genTransactions(dblk, trans_addr);
-  cout << "generated trans size: " << trans_addr.size() << endl;
+  //cout << "generated trans size: " << trans_addr.size() << endl;
   //cout << "trans addr" << endl;
   //for(auto &i: trans_addr){
     //cout << hex << i << endl;
   //}
   
-  cout << "in store dblk" << endl;
-  int numCycles = 10000;
+  //cout << "in store dblk" << endl;
+  int numCycles = INT_MAX;
   bool pendingTrans = false;
   Transaction* trans = NULL;
   void* data = NULL;
@@ -146,7 +156,7 @@ int LoadStoreDblk::storeDblk(DataBlock* dblk){
       if(!trans_addr.empty()){
         //new tran
 	uint64_t addr = trans_addr.front();
-	cout << "***tran addr " << addr << endl;
+	//cout << "***tran addr " << addr << endl;
 	trans_addr.pop();
 	trans = new Transaction(DATA_WRITE, addr, data);
 	if(!dram->addTransaction(true, addr)){
@@ -169,6 +179,7 @@ int LoadStoreDblk::storeDblk(DataBlock* dblk){
       }
     }
     dram->update();
+    transactionReceiver.cpu_callback(i);
     //cout << "pending num: " << transactionReceiver.num_pending << endl;
     if(transactionReceiver.num_pending == 0){
       cout << "***************finish cycle " << i << endl;
@@ -197,11 +208,11 @@ void MacroNode::BuildOpMap(vector<Tile> &real_tiles, vector<Operation> &real_ops
   //cout << endl << "mn " << idx << endl;
   for(map<int,int>::iterator t=tile_map.begin(); t!=tile_map.end(); t++){
     //cout << "real tile " << t->first << ": " << " tile in mn " << t->second << endl;
-    vector<int>::iterator op2 = mn_temp->tiles[t->second].ops.begin();
+    vector<int>::iterator op2 = mn_temp->p_cg->tiles[t->second].ops.begin();
     for(vector<int>::iterator op1 = real_tiles[t->first].ops.begin(); op1!=real_tiles[t->first].ops.end(); op1++){
       //cout << "op in real tile " << *op1 << endl;
       //cout << "op in mn tile " << *op2 << endl;
-      vector<int>::iterator inop2 = mn_temp->ops[*op2].in.begin();
+      vector<int>::iterator inop2 = mn_temp->p_cg->ops[*op2].in.begin();
       for(vector<int>::iterator inop1 = real_ops[*op1].in.begin(); inop1!=real_ops[*op1].in.end(); inop1++){
 	//cout <<"inop in real tile " << *inop1 << endl;
 	//cout <<"inop in mn tile " << *inop2 << endl;
@@ -214,7 +225,7 @@ void MacroNode::BuildOpMap(vector<Tile> &real_tiles, vector<Operation> &real_ops
     }
 
     vector<int>::iterator out_op1 = real_tiles[t->first].liveout_ops.begin();
-    for(vector<int>::iterator out_op2= mn_temp->tiles[t->second].liveout_ops.begin(); out_op2!= mn_temp->tiles[t->second].liveout_ops.end(); out_op2++){
+    for(vector<int>::iterator out_op2= mn_temp->p_cg->tiles[t->second].liveout_ops.begin(); out_op2!= mn_temp->p_cg->tiles[t->second].liveout_ops.end(); out_op2++){
       if(op_map.find(*out_op2) == op_map.end()){
 	op_map[*out_op2] = *out_op1;
       }

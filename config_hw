@@ -1,2 +1,2 @@
-Memory: #banks, bank size(Bytes), #ports/bank
-32, 1024, 2
+Memory: #banks, bank size(Bytes), #ports/bank 
+16, 1024, 2

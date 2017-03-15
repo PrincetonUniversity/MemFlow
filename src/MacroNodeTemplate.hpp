@@ -9,6 +9,7 @@
 #include "Hardware.hpp"
 #include "Memory.hpp"
 #include "DataBlock.hpp"
+#include "ComputationGraph.hpp"
 
 using namespace std;
 
@@ -48,66 +49,57 @@ struct bankex_sche{
 
 class MacroNodeTemplate{
   public:
-    MacroNodeTemplate(string in_name);
-    MacroNodeTemplate(vector<Operation> &in_ops, vector<Tile> &in_tiles, string in_name);
+    MacroNodeTemplate(){};
     ~MacroNodeTemplate(){};
 
-    void MN_mtxmul(int in_m, int in_n, int in_k, bool sche);
-    //void MN_load(int tile_width, bool sche);
-    //void MN_store(int tile_width, bool sche);
-    //void MN_2load_mtxmul(int m, int n, int k, bool sche);
-    //void MN_load1_mtxmul(int m, int n, int k, bool sche);
-    //void MN_load2_mtxmul(int m, int n, int k, bool sche);
-    void GetScheduling();
-
     //ops, tils inside mn
-    vector<Operation> ops;
-    vector<Tile> tiles;
+    //vector<Operation> ops;
+    //vector<Tile> tiles;
+	
+    map<string, shared_ptr<DatBlock>> dblks;
+    map<string, vector<vector<int>>> mtx;
 
+    ComputationGraph* p_cg;
 
-    //For scheduling tiles (allocate liveranges)
-    //*************************************
-    //data determined by scheduling
-    vector<tile_sche> tiles_sche;
-
-    vector<spill_sche> spills_sche;
-    vector<bankex_sche> bankexs_sche;
-    
     shared_ptr<MemoryTrack> mem;
-
-    map<int,int> op_in_cycle;	
-    map<int,int> inop_firstread;
-    //key: op idx in mn, value: cycle to read op for the first time
-
-    //io ops
-    //just need to update mem port usage in mem
-    int m;
-    int n;
-    int k;
-
-    int tile_m;
-    int tile_n;
-    int tile_k;
-
-    vector<vector<int>> Ain;   
-    vector<vector<int>> Bin;   
-    vector<vector<int>> Cin;   
-    vector<vector<int>> Cout;   
-
-    map<int,array<int,2>> ioop_addr;
-    //key: io op, value: mem addr
-
-    shared_ptr<DataBlock> ablk;
-    shared_ptr<DataBlock> bblk;
-    shared_ptr<DataBlock> cblk;
-
-
-    vector<int> max_num_live;
-    //*************************************
-
+    
     string name;
-
     int cycle_length;
+};
+
+class MN_mtxmul: public MacroNodeTemplate{
+  public:
+  MN_mtxmul(int in_m, int in_n, int in_k, bool sche);
+  ~MN_mtxmul(){};
+
+  int m;
+  int n;
+  int k;
+};
+
+class MN_LU: public MacroNodeTemplate{
+  public:
+    MN_LU(int in_n, bool sche);
+    ~MN_LU(){};
+
+    int n;
+};
+
+//LU complement
+class MN_LUCPL: public MacroNodeTemplate{
+  public:
+    MN_LUCPL(int in_n, bool sche);
+    ~MN_LUCPL(){};
+
+    int n;
+};
+
+class MN_TRS: public MacroNodeTemplate{
+  public:
+    MN_TRS(int in_n, bool sche);
+    ~MN_TRS(){};
+
+    int n;
 };
 
 #endif
