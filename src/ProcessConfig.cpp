@@ -73,7 +73,6 @@ void readConfig(){
     }
     */
 
-
     getline(config, line);
     string start_mem = "Memory";
 
@@ -82,24 +81,24 @@ void readConfig(){
     }
 
     getline(config, line);
-    int count = 0;
-    while(!line.empty()){
-      stringstream ss(line);
+    
+    stringstream ss(line);
+    string token;
+    getline(ss, token, ',');
+    int num_bank = atoi(token.c_str());
 
-      string token;
-      getline(ss, token, ',');
-      int size = atoi(token.c_str());
+    getline(ss, token, ',');
+    int size = atoi(token.c_str())/4;
 
-      getline(ss, token, ',');
-      int port = atoi(token.c_str());
+    getline(ss, token, ',');
+    int port = atoi(token.c_str());
 
-      MemBank m = {size, port};
+    Memory::num_bank = num_bank*port;
+    int real_size = size/port;
+    for(int i=0; i<Memory::num_bank; i++){
+      MemBank m = {real_size, 1};
       Memory::membanks.push_back(m);
-
-      getline(config, line);
-      count++; 
     }
-    Memory::num_bank = count;
   }
   else cout << "Unable to open file config_hw" << endl;
 }
@@ -110,7 +109,14 @@ void freeConfig(){
   }
 
   for(auto it=ComputeBlockLib::cbs.begin(); it!=ComputeBlockLib::cbs.end(); it++){
-    delete it->second;
+    for(auto it1=it->second.begin(); it1!=it->second.end(); it1++){
+      delete it1->second;
+    }
   }
 
+  delete dram;
+
+  for(auto it=data_arrays.begin(); it!=data_arrays.end(); it++){
+    delete it->second;
+  }
 }

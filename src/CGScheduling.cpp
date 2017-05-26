@@ -1,6 +1,8 @@
 #include<iostream>
 #include<vector>
 #include<memory>
+#include<array>
+#include<string>
 
 #include "CGScheduling.hpp"
 #include "MacroNode.hpp"
@@ -10,514 +12,641 @@
 
 using namespace std;
 
-MacroNodePriority::MacroNodePriority(int in_mn_idx, CGScheduling* in_sche):mn_idx(in_mn_idx), sche(in_sche){
-  mn_idx = in_mn_idx;
-  sche = in_sche;
-
-  priority = in_mn_idx;
-  //priority = sche->mns[mn_idx]->pred_mns.size();
-}
-
-CGScheduling::CGScheduling(ComputationGraph &in_cg, MemoryTrack &in_global_mem):cg(in_cg), global_mem(in_global_mem){
-  //cg = in_cg;
-
-  load_latency = 100;
-  store_latency = 100;
-
-  //initialize tiles_sche
-  for(size_t i=0; i<cg.tiles.size(); i++){
-    tile_sche ts;
-    ts.start = 0;
-    ts.end = 0;
-    tiles_sche.push_back(ts);
-  }
-  //initialize op_in_bank
-  for(vector<Tile>::iterator t=cg.tiles.begin(); t!=cg.tiles.end(); t++){
-    for(map<int,int>::iterator in_op=t->livein_ops.begin(); in_op!=t->livein_ops.end(); in_op++){
-      vector<int> t;
-      op_in_bank[in_op->first] = t;
-    }
-  }
-
-  //initialize memory data
-  for(int i=0; i<Memory::num_bank; i++){
-    vector<int> t;
-    num_port.push_back(t);
-    num_live.push_back(t);
-  }
-
-  vector<int> ops;
-  for(vector<Tile>::iterator t=cg.tiles.begin(); t!=cg.tiles.end(); t++){
-    for(map<int,int>::iterator in_op=t->livein_ops.begin(); in_op!=t->livein_ops.end(); in_op++){
-      ops.push_back(in_op->first);
-    }
-    for(vector<int>::iterator out_op=t->liveout_ops.begin(); out_op!=t->liveout_ops.end(); out_op++){
-      ops.push_back(*out_op);
-    }
-  }
-  mem = shared_ptr<MemoryTrack>(new MemoryTrack(ops, opti_para));
-
-  begin_cycle = 0;
+CGScheduling::CGScheduling():mem(*global_sp){
 }
 
 CGScheduling::~CGScheduling(){
-  //for(auto it=mns.begin(); it!=mns.end(); it++){
-  //  delete *it;
-  //}
-
-  //delete mem;
 }
 
-void CGScheduling::PrintMacroNodes(){
-  cout << endl << "Macro nodes " << endl;
-  cout << "------------------------------------------" << endl;
-  for(vector<MacroNode*>::iterator mn=mns.begin(); mn!=mns.end(); mn++){
-    cout << endl << "mn " << (*mn)->idx << ": " << (*mn)->name << endl;
-    cout << "tile map (tile idx in mn: real tile idx)" << endl;
-    for(map<int, int>::iterator i=(*mn)->tile_map.begin(); i!=(*mn)->tile_map.end(); i++){
-      cout << i->first << ": " << i->second << endl;
-    }
-    cout << "pred_dblks: ";
-    for(auto i=(*mn)->pred_dblks.begin(); i!=(*mn)->pred_dblks.end(); i++){
-      cout << *i << " ";
-    }
-    cout << endl;
-    cout << "post_dblks: ";
-    for(auto i=(*mn)->post_dblks.begin(); i!=(*mn)->post_dblks.end(); i++){
-      cout << *i << " ";
-    }
-    cout << endl;
+void CGScheduling::setDblkUseTime(){
+  for(auto &d: dblk_idx){
+    data_arrays[d.first]->dblks[d.second].next_use_t.push(macro_time);
   }
-  cout << "------------------------------------------" << endl;
 }
 
-void CGScheduling::SetMNDep(){
-  for(vector<MacroNode*>::iterator mn=mns.begin(); mn!=mns.end(); mn++){
+void CGScheduling::prepareDblks(){
+  cout << endl << "macro time " << macro_time << endl;
+  cout << "blk i,j,l: " << blk_i << "," << blk_j << "," << blk_l << endl;
+  for(auto &d: dblk_idx){
+    int idx = d.second;
+    DataBlock* dblk = &data_arrays[d.first]->dblks[idx];
+    if((!dblk->next_use_t.empty()) && (dblk->next_use_t.front() == macro_time)){
+      dblk->next_use_t.pop();
+    }
 
-    //set pred_mns of each mn
-    for(map<int,int>::iterator inop=(*mn)->mn_temp->inop_firstread.begin(); inop!=(*mn)->mn_temp->inop_firstread.end(); inop++){
-      if((*mn)->op_map.find(inop->first) != (*mn)->op_map.end()){
-	int real_op = (*mn)->op_map[inop->first];
-	//set op_usermn
-	if(op_usermn.find(real_op) == op_usermn.end()){
-	  set<int> usermn;
-	  usermn.insert((*mn)->idx);
-	  op_usermn[real_op] = usermn;
-	}		 
-	else{
-	  op_usermn[real_op].insert((*mn)->idx);
+    //all used dblks(no matter read or write) need to be allocated to sram
+    int sp_base;
+    if(!dblk->in_sp){
+      //dblk can be read or write
+      cout << d.first << "not in sp" << endl;
+      //get sp addr
+      if(global_sp->sp_regions[d.first].next_empty.empty()){
+        sp_base = global_sp->sp_regions[d.first].next_base_2replace;
+
+	int idx_replace = global_sp->sp_regions[d.first].dblk_idx[sp_base];
+	DataBlock* dblk_2replace = &data_arrays[d.first]->dblks[idx_replace];
+	
+	cout << "   replace " << idx_replace << endl;
+	num_dram_spill += dblk_2replace->size;
+	cout << "   num spill " << num_dram_spill << endl;
+
+	if(d.first == "L"){
+	  num_spill_l += dblk_2replace->size;
+	}
+	else if(d.first == "U"){
+	  num_spill_u += dblk_2replace->size;
+	}
+	else if(d.first == "A"){
+	  num_spill_a += dblk_2replace->size;
 	}
 
-	//set mn pred/post mns
-	int tile = cg.ops[real_op].tile;
-	int pred_mn = cg.tiles[tile].mn;
-	if((*mn)->pred_mns.find(pred_mn) == (*mn)->pred_mns.end()){
-	  (*mn)->pred_mns.insert(pred_mn);
-	  //add mn to pred_mn's post mns
-	  mns[pred_mn]->post_mns.insert(mn-mns.begin());
+	//some case need to store
+	dblk_2replace->in_sp = false;
+	if(dblk_2replace->dirty){
+	  //if(store_latency.find(d.first) == store_latency.end()){
+	  //  store_latency[d.first] = load_store->storeDblk(dblk_2replace);
+	  //}
+	  //cycle += store_latency[d.first];
+	  num_dram_write += dblk_2replace->size;
+	  cout << "dram write " << d.first << endl;
 	}
       }
-    }
-  }
-}
-
-
-//set dependency between mns and dblks
-void CGScheduling::SetDep(){
-  //generate dblks generated by each mn
-  for(auto mn=mns.begin(); mn!=mns.end(); mn++){
-    //macronode: mn
-    shared_ptr<DataBlock> dblk(new DataBlock(dblks.size()));
-    dblks_ptr.push_back(dblk);
-    dblks.push_back(dblk.get());
-
-    cout << endl << "dblk " << dblk->idx << " for mn " << (*mn)->idx << endl;
-    for(auto t=(*mn)->tile_map.begin(); t!=(*mn)->tile_map.end(); t++){
-      int tile = t->first;
-      for(auto p=cg.tiles[tile].post_tiles.begin(); p!=cg.tiles[tile].post_tiles.end(); p++){
-	for(auto pt=p->second.begin(); pt!=p->second.end(); pt++){
-	  if(cg.tiles[*pt].mn != (*mn)->idx){
-	    dblk->ops.push_back(p->first);  
-	    cout << p->first << endl;
-	  }
-	}
+      else{
+        sp_base = global_sp->sp_regions[d.first].next_empty.front();
+	global_sp->sp_regions[d.first].next_empty.pop();
       }
-    }
 
-    (*mn)->post_dblks.push_back(dblk->idx);
-    dblk->pred_mns.push_back((*mn)->idx);
-  }
-
-  //build dep between dblks and mns
-  for(auto dblk=dblks.begin(); dblk!=dblks.end(); dblk++){
-    for(auto op=(*dblk)->ops.begin(); op!=(*dblk)->ops.end(); op++){
-      for(auto out=cg.ops[*op].out.begin(); out!=cg.ops[*op].out.end(); out++){
-        int tile = cg.ops[*out].tile;
-	if(tile!=-1){
-	  int mn = cg.tiles[tile].mn;
-	  if(mn!=-1){
-	    if((*dblk)->post_mns.find(mn) == (*dblk)->post_mns.end()){
-	      (*dblk)->post_mns.insert(mn);
-	      mns[mn]->pred_dblks.push_back((*dblk)->idx);
-	    }
-	  }
-	}
+      cout << "   sp base " << sp_base << endl;
+      //update info
+      if(out_dblk.find(d.first) == out_dblk.end()){
+	//read from dram
+        dblk->dirty = false;
       }
-    }
-  }
-}
-
-void CGScheduling::MacroNodeGen(int blk_dimi, int blk_dimj, int blk_diml){
-
-  vector<vector<int>> mn_dim = {{blk_dimi, blk_diml, 0},
-    {blk_diml, blk_dimj, 0},
-    {blk_dimi, blk_dimj, blk_diml},
-    {blk_dimi, blk_dimj, 0}};
-
-  for(vector<Pattern*>::iterator p=cg.patterns.begin(); p!=cg.patterns.end(); p++){
-    cout << endl  << "Generate MacroNode for " << (*p)->name << endl;
-    if((*p)->name != "store_matrix"){
-      int pattern_idx = p-cg.patterns.begin();
-      (*p)->MacroNodeGen(mn_dim[pattern_idx][0], mn_dim[pattern_idx][1], mn_dim[pattern_idx][2]);
-      for(auto db=(*p)->dblks.begin(); db!=(*p)->dblks.end(); db++){
-	(*db)->idx = dblks.size();
-	dblks.push_back(db->get());
+      else{
+        dblk->dirty = true;
       }
-      for(auto mn=(*p)->mns.begin(); mn!=(*p)->mns.end(); mn++){
-	(*mn)->idx = mns.size();
-	mns.push_back(mn->get());
-	for(auto t=(*mn)->tile_map.begin(); t!=(*mn)->tile_map.end(); t++){
-	  cg.tiles[t->first].mn = (*mn)->idx;
-	}
+      dblk->in_sp = true;
+      dblk->sp_addr = {d.first, sp_base};
+      global_sp->sp_regions[d.first].dblk_idx[sp_base] = idx;
+      global_sp->sp_regions[d.first].updateNextBase2Replace(sp_base);
+
+      //load latency
+      if(in_dblk.find(d.first) != in_dblk.end()){
+	//if(load_latency.find(d.first) == load_latency.end()){
+	  //load_latency[d.first] = load_store->loadDblk(dblk);
+	//}
+	num_dram_read += dblk->size;
+	//cycle += load_latency[d.first];
       }
-    }
-  }
-
-  SetDep();
-  PrintDep();
-}
-
-void CGScheduling::PrintDep(){
-  cout << endl << "Dependency of dblks and mns " << endl;
-  for(auto dblk=dblks.begin(); dblk!=dblks.end(); dblk++){
-    cout << endl << "dblk " << (*dblk)->idx << endl;
-    cout << "pred_mns: ";
-    for(auto mn=(*dblk)->pred_mns.begin(); mn!=(*dblk)->pred_mns.end(); mn++){
-      cout << mns[*mn]->idx << ",";
-    }
-    cout << endl;
-    cout << "post_mns: ";
-    for(auto mn=(*dblk)->post_mns.begin(); mn!=(*dblk)->post_mns.end(); mn++){
-      cout << mns[*mn]->idx << ",";
-    }
-    cout << endl;
-  }
-
-  for(auto mn=mns.begin(); mn!=mns.end(); mn++){
-    cout << endl << "mn " << (*mn)->idx << endl;
-    cout << "pred_dblks: ";
-    for(auto db=(*mn)->pred_dblks.begin(); db!=(*mn)->pred_dblks.end(); db++){
-      cout << dblks[*db]->idx << ",";
-    }
-    cout << endl;
-    cout << "post_dblks: ";
-    for(auto db=(*mn)->post_dblks.begin(); db!=(*mn)->post_dblks.end(); db++){
-      cout << dblks[*db]->idx << ",";
-    }
-    cout << endl;
-  }
-}
-
-
-struct mn_comparison{
-  bool operator()(const MacroNodePriority* mn1, const MacroNodePriority* mn2){
-    if(mn1->priority > mn2->priority){
-      return true;
+      //end case: not in sp
+      num_sram_update += dblk->size;
     }
     else{
-      return false;
+      sp_base = dblk->sp_addr.base;
+      global_sp->sp_regions[d.first].updateNextBase2Replace(sp_base);
+      if(out_dblk.find(d.first) != out_dblk.end()){
+        dblk->dirty = true;
+      }
     }
-  }
-};
 
-void CGScheduling::genMNOrder(vector<int>& order){
-  //pattern of mtxmul: cg.patterns[2]
-  int mn_m = cg.patterns[2]->mn_m;
-  int mn_n = cg.patterns[2]->mn_n;
-  int mn_k = cg.patterns[2]->mn_k;
-
-  //row order
-  for(int mn_i=0; mn_i<mn_m; mn_i++){
-    for(int mn_j=0; mn_j<mn_n; mn_j++){
-      for(int mn_l=0; mn_l<mn_k; mn_l++){
-        int mn_idx = mn_i*(mn_n*mn_k)+mn_j*mn_k+mn_l;
-	order.push_back(mn_idx);
+    //no future use, remvoe
+    if(dblk->next_use_t.empty()){
+      dblk->in_sp = false;
+      global_sp->sp_regions[d.first].next_empty.push(dblk->sp_addr.base);
+      //if(out_dblk.find(d.first) != out_dblk.end()){
+	//if(store_latency.find(d.first) == store_latency.end()){
+	  //store_latency[d.first] = load_store->storeDblk(dblk);
+	//}
+      if(kernal_out_dblk.find(d.first) != kernal_out_dblk.end()){
+	num_dram_write += dblk->size;
+	cout << "dram write " << d.first << endl;
+	//cycle += store_latency[d.first];
       }
     }
   }
 }
 
-void CGScheduling::AllocateDblks(){
+void CGScheduling::runMacroNode_MM(){
 
-  //determine mn order
-  genMNOrder(mn_order);
+  //dblk need to read
+  in_dblk.clear();
+  in_dblk.insert("A");
+  in_dblk.insert("B");
+  in_dblk.insert("C");
 
-  cout << "mn order" << endl;
-  for(auto i=mn_order.begin(); i!=mn_order.end(); i++){
-     cout << *i << endl;
-  }
+  out_dblk.clear();
+  out_dblk.insert("C");
   
-  //initialize load and store
-  for(int c=0; c<mn_order.size(); c++){
-    vector<load_dblk> tl;
-    load.push_back(tl);
-    vector<store_dblk> ts;
-    store.push_back(ts);
-  }
+  prepareDblks();
 
-  //blk need to allocate to mem
-  vector<int> a_blk;
-  vector<int> b_blk;
-  vector<int> c_blk;
-  for(auto i=mn_order.begin(); i!=mn_order.end(); i++){
-    //mn idx : *i
-    a_blk.push_back(mns[*i]->pred_dblks[0]);
-    dblks[mns[*i]->pred_dblks[0]]->live_cycle.push_back(i-mn_order.begin());
-    b_blk.push_back(mns[*i]->pred_dblks[1]);
-    dblks[mns[*i]->pred_dblks[1]]->live_cycle.push_back(i-mn_order.begin());
-    c_blk.push_back(mns[*i]->post_dblks[0]);
-    dblks[mns[*i]->post_dblks[0]]->live_cycle.push_back(i-mn_order.begin());
-    if(mns[*i]->pred_dblks.size() > 2){
-      dblks[mns[*i]->pred_dblks[2]]->live_cycle.push_back(i-mn_order.begin());
-    }
-  }
+  //mn
+  MacroNode mn(mn_temp["mm"], mns.size());
+  cycle += mn.mn_temp->cycle_length;
+  total_use += mn.mn_temp->total_use;
+  use_sram += mn.mn_temp->use_sram;
+  use_pipe += mn.mn_temp->use_pipe;
+  num_compute_cycles += mn.mn_temp->cycle_length;
+  mns.push_back(mn);
+}
 
-  cout << "a_blk " << endl;
-  for(auto i=a_blk.begin(); i!=a_blk.end(); i++){
-    cout << *i << endl;
-  }
-  cout << "b_blk " << endl;
-  for(auto i=b_blk.begin(); i!=b_blk.end(); i++){
-    cout << *i << endl;
-  }
-  cout << "c_blk " << endl;
-  for(auto i=c_blk.begin(); i!=c_blk.end(); i++){
-    cout << *i << endl;
-  }
+void CGScheduling::setDblkIdx_MM(){
+  dblk_idx.clear();
+  dblk_idx["A"] = blk_i*opti_para.axes["l"].num_blk+blk_l;
+  dblk_idx["B"] = blk_l*opti_para.axes["j"].num_blk+blk_j;
+  dblk_idx["C"] = blk_i*opti_para.axes["j"].num_blk+blk_j;
+  
+  //do something
+  (this->*func_iteration)();
 
-  //initialize dblks' mem_addr
-  for(auto db=dblks.begin(); db!=dblks.end(); db++){
-    for(int c=0; c<mn_order.size(); c++){
-      (*db)->mem_addr.push_back(-1);
-    }
-  }
-  //sweep all macro cycles
+  macro_time++;
+}
 
-  int num_spill = 0;
-  for(int c=0; c<mn_order.size(); c++){
-    //allocate c
-    //remove c block not live anymore
-    for(auto i=global_mem.c.begin(); i!=global_mem.c.end(); i++){
-      if(*i != -1){
-	if(c > *(dblks[*i]->live_cycle.rbegin())){
-	  //store
-	  store_dblk t = {*i, global_mem.getBase_c(i-global_mem.c.begin())};
-	  store[c-1].push_back(t);
-	  *i = -1;
-	}
-	else{
-	  dblks[*i]->mem_addr[c] = global_mem.getBase_c(i-global_mem.c.begin());
+void CGScheduling::LoopStructure_MM(){
+  blk_m = opti_para.axes["i"].num_blk;
+  blk_n = opti_para.axes["j"].num_blk;
+  blk_k = opti_para.axes["l"].num_blk;
+
+  macro_time = 0;
+  if(opti_para.loop_order.loop_idc == array<string,3>{"i","j","l"}){
+    for(blk_i=0; blk_i<blk_m; blk_i++){
+      for(blk_j=0; blk_j<blk_n; blk_j++){
+	for(blk_l=0; blk_l<blk_k; blk_l++){
+	  setDblkIdx_MM();
 	}
       }
     }
-    if(dblks[c_blk[c]]->mem_addr[c] == -1){
-      for(auto i=global_mem.c.begin(); i!=global_mem.c.end(); i++){
-	if(*i == -1){
-	  *i = c_blk[c];
-	  dblks[c_blk[c]]->mem_addr[c] = global_mem.getBase_c(i-global_mem.c.begin());
-	  //load
-	  load_dblk t = {c_blk[c], global_mem.getBase_c(i-global_mem.c.begin())};
-	  load[c].push_back(t);
-	  break;
-	}
-	else{
-	  if(i == (global_mem.c.end()-1)){
-	    dblks[*i]->mem_addr[c] = -1;
-	    dblks[c_blk[c]]->mem_addr[c] = global_mem.getBase_c(i-global_mem.c.begin());
-	    store_dblk ts = {*i, global_mem.getBase_c(i-global_mem.c.begin())};
-	    store[c-1].push_back(ts);
-	    load_dblk tl = {c_blk[c], global_mem.getBase_c(i-global_mem.c.begin())};
-	    load[c].push_back(tl);
-	    *i = c_blk[c];
-
-	    cout << "add num_spill, c_space " << global_mem.c_space << endl;
-	    num_spill += global_mem.c_space;
-	  }
+  }
+  else if(opti_para.loop_order.loop_idc == array<string,3>{"i","l","j"}){
+    for(blk_i=0; blk_i<blk_m; blk_i++){
+      for(blk_l=0; blk_l<blk_k; blk_l++){
+	for(blk_j=0; blk_j<blk_n; blk_j++){
+	  setDblkIdx_MM();
 	}
       }
     }
-    if(c == mn_order.size()-1){
-      for(auto i=global_mem.c.begin(); i!=global_mem.c.end(); i++){
-        if(*i != -1){
-	  store_dblk t = {*i, global_mem.getBase_c(i-global_mem.c.begin())};
-	  store[c].push_back(t);
+  }
+  else if(opti_para.loop_order.loop_idc == array<string,3>{"j","l","i"}){
+    for(blk_j=0; blk_j<blk_n; blk_j++){
+      for(blk_l=0; blk_l<blk_k; blk_l++){
+	for(blk_i=0; blk_i<blk_m; blk_i++){
+	  setDblkIdx_MM();
 	}
       }
     }
-
-    //allocate a
-    for(auto i=global_mem.a.begin(); i!=global_mem.a.end(); i++){
-      if(*i != -1){
-        if(c > *(dblks[*i]->live_cycle.rbegin())){
-	  *i = -1;
-	}
-	else{
-	  dblks[*i]->mem_addr[c] = global_mem.getBase_a(i-global_mem.a.begin());
+  }
+  else if(opti_para.loop_order.loop_idc == array<string,3>{"j","i","l"}){
+    for(blk_j=0; blk_j<blk_n; blk_j++){
+      for(blk_i=0; blk_i<blk_m; blk_i++){
+	for(blk_l=0; blk_l<blk_k; blk_l++){
+	  setDblkIdx_MM();
 	}
       }
     }
-    if(dblks[a_blk[c]]->mem_addr[c] == -1){
-      for(auto i=global_mem.a.begin(); i!=global_mem.a.end(); i++){
-	if(*i == -1){
-	  *i = a_blk[c];
-	  dblks[a_blk[c]]->mem_addr[c] = global_mem.getBase_a(i-global_mem.a.begin());
-	  load_dblk t = {a_blk[c], global_mem.getBase_a(i-global_mem.a.begin())};
-	  load[c].push_back(t);
-	  break;
-	}
-	else{
-	  if(i == (global_mem.a.end()-1)){
-	    dblks[*i]->mem_addr[c] = -1;
-	    dblks[a_blk[c]]->mem_addr[c] = global_mem.getBase_a(i-global_mem.a.begin());
-	    load_dblk tl = {a_blk[c], global_mem.getBase_a(i-global_mem.a.begin())};
-	    load[c].push_back(tl);
-	    *i = a_blk[c];
-
-	    cout << "add num_spill, a_space " << global_mem.a_space << endl;
-	    num_spill += global_mem.a_space;
-	  }
+  }
+  else if(opti_para.loop_order.loop_idc == array<string,3>{"l","i","j"}){
+    for(blk_l=0; blk_l<blk_k; blk_l++){
+      for(blk_i=0; blk_i<blk_m; blk_i++){
+	for(blk_j=0; blk_j<blk_n; blk_j++){
+	  setDblkIdx_MM();
 	}
       }
     }
-
-    //allocate b
-    for(auto i=global_mem.b.begin(); i!=global_mem.b.end(); i++){
-      if(*i != -1){
-        if(c > *(dblks[*i]->live_cycle.rbegin())){
-	  *i = -1;
-	}
-	else{
-	  dblks[*i]->mem_addr[c] = global_mem.getBase_b(i-global_mem.b.begin());
-	}
-      }
-    }
-    if(dblks[b_blk[c]]->mem_addr[c] == -1){
-      for(auto i=global_mem.b.begin(); i!=global_mem.b.end(); i++){
-	if(*i == -1){
-	  *i = b_blk[c];
-	  dblks[b_blk[c]]->mem_addr[c] = global_mem.getBase_b(i-global_mem.b.begin());
-	  load_dblk t = {b_blk[c], global_mem.getBase_b(i-global_mem.b.begin())};
-	  load[c].push_back(t);
-	  break;
-	}
-	else{
-	  if(i == (global_mem.b.end()-1)){
-	    dblks[*i]->mem_addr[c] = -1;
-	    dblks[b_blk[c]]->mem_addr[c] = global_mem.getBase_b(i-global_mem.b.begin());
-	    load_dblk tl = {b_blk[c], global_mem.getBase_b(i-global_mem.b.begin())};
-	    load[c].push_back(tl);
-	    *i = b_blk[c];
-
-	    cout << "add num_spill, b_space " << global_mem.b_space << endl;
-	    num_spill += global_mem.b_space;
-	  }
+  }
+  else{
+    for(blk_l=0; blk_l<blk_k; blk_l++){
+      for(blk_j=0; blk_j<blk_n; blk_j++){
+	for(blk_i=0; blk_i<blk_m; blk_i++){
+	  setDblkIdx_MM();
 	}
       }
     }
   }
 
-  cout << "load dblk " << endl;
-  for(int i=0; i<mn_order.size(); i++){
-    for(auto t=load[i].begin(); t!=load[i].end(); t++){
-      cout << t->dblk_idx << ",";
-    }
-    cout << endl;
-  }
+}
 
-  cout << "store dblk " << endl;
-  for(int i=0; i<mn_order.size(); i++){
-    for(auto t=store[i].begin(); t!=store[i].end(); t++){
-      cout << t->dblk_idx << ",";
-    }
-    cout << endl;
-  }
+void CGScheduling::MacroNodeGen_MM(){
+  //generate mns
 
-  //count #spill
-  cout << "num spill " << num_spill << endl;
+  kernal_out_dblk.insert("C");
 
+  int blk_m = opti_para.axes["i"].blk_dim;
+  int blk_n = opti_para.axes["j"].blk_dim;
+  int blk_k = opti_para.axes["l"].blk_dim;
+  
+  map<string, dblk_info> dblks_info;
+  dblks_info["A"] = {"A","A","mode_mm_a",opti_para.axes["i"].subblk_dim, opti_para.axes["l"].subblk_dim, blk_m,blk_k};
+  dblks_info["B"] = {"B","B","mode_mm_b",opti_para.axes["l"].subblk_dim, opti_para.axes["j"].subblk_dim, blk_k,blk_n};
+  dblks_info["C"] = {"C","C","mode_mm_c",opti_para.axes["i"].subblk_dim, opti_para.axes["j"].subblk_dim, blk_m,blk_n};
 
+  mn_temp["mm"] = new MN_mtxmul(true, blk_m, blk_n, blk_k, dblks_info);
+  mn_temps.push_back(mn_temp["mm"]);
+
+  //transaction 
+  load_store = shared_ptr<LoadStoreDblk>(new LoadStoreDblk);
+
+  num_compute_cycles = 0;
+  cycle = 0;
+  total_use = 0;
+  use_sram = 0;
+  use_pipe = 0;
+  num_dram_read = 0;
+  num_dram_spill = 0;
+  num_dram_write = 0;
+  num_sram_update = 0;
+  num_blk_replaced_a = 0;
+  num_blk_replaced_b = 0;
+  num_blk_replaced_c = 0;
+ 
+  func_iteration = &CGScheduling::setDblkUseTime;
+  LoopStructure_MM();
+
+  func_iteration = &CGScheduling::runMacroNode_MM;
+  LoopStructure_MM();
 }
 
 
 
-void CGScheduling::Scheduling(){
-  //schedule each macronode
-  //int cycle = 0;
-  //num_cycles = 0;
+void CGScheduling::runMacroNode_LU(){
+
+  in_dblk.clear();
+  out_dblk.clear();
+
+  string mn_temp_name;
+
+  if((blk_i == blk_l) && (blk_j == blk_l)){
+    //dblk need to read
+    in_dblk.insert("A");
+
+    out_dblk.insert("L");
+    out_dblk.insert("U");
   
-  AllocateDblks();
+    mn_temp_name = "lu";
+  }
+  else if(blk_j == blk_l){
+    in_dblk.insert("A");
+    in_dblk.insert("U");
 
-}  
+    out_dblk.insert("L");
 
-/*
-   void CGScheduling::PrintScheduling(){
-   cout << "Tile scheduling: " << endl;
-   for(vector<tile_sche>::iterator t=tiles_sche.begin(); t!=tiles_sche.end(); t++){
-   int tile = t-tiles_sche.begin();
-   cout << "tile " << t-tiles_sche.begin() << endl;
-   cout << "start " << t->start << endl;
-   cout << "end " << t->end << endl;
-   for(map<int,int>::iterator i=cg.tiles[tile].livein_ops.begin(); i!=cg.tiles[tile].livein_ops.end(); i++){
-   cout << "livein_op " << i->first << " read at " << t->start+i->second << endl;
-   }
-   for(vector<int>::iterator i=cg.tiles[tile].liveout_ops.begin(); i!=cg.tiles[tile].liveout_ops.end(); i++){
-   cout << "liveout_op " << *i << endl;
-   }
-   cout << endl;
-   }
-   }
+    mn_temp_name = "lucpl";
+  }
+  else if(blk_i == blk_l){
+    in_dblk.insert("A");
+    in_dblk.insert("L");
 
-   void CGScheduling::PrintSpill(){
-   cout << "Spill scheduling: " << endl;
-   for(vector<spill_sche>::iterator sp=spills_sche.begin(); sp!=spills_sche.end(); sp++){
-   cout << "spill op " << sp->op << endl;
-   cout << "start " << sp->start << " at bank "<< sp->start_membank << endl ;
-   cout << "end " << sp->end << " at bank " << sp->end_membank << endl;
-   cout << endl;
-   }
-   }
+    out_dblk.insert("U");
 
-   void CGScheduling::PrintBankex(){
-   cout << "Bankex scheduling: " << endl;
-   for(vector<bankex_sche>::iterator bs=bankexs_sche.begin(); bs!=bankexs_sche.end(); bs++){
-   cout << "bankex op " << bs->op << endl;
-   cout << "start " << bs->start << " at bank " << bs->start_membank << endl;
-   cout << "end " << bs->end << " at bank " << bs->end_membank << endl;
-   cout << endl;
-   }
-   }
- */
+    mn_temp_name = "trs";
+  }
+  else{
+    in_dblk.insert("L");
+    in_dblk.insert("U");
+    in_dblk.insert("A");
+
+    out_dblk.insert("A");
+
+    mn_temp_name = "submm";
+  }
+
+  prepareDblks();
+  //mn
+  MacroNode mn(mn_temp[mn_temp_name], mns.size());
+  cycle += mn.mn_temp->cycle_length;
+  num_compute_cycles += mn.mn_temp->cycle_length;
+  total_use += mn.mn_temp->total_use;
+  use_sram += mn.mn_temp->use_sram;
+  use_pipe += mn.mn_temp->use_pipe;
+  mns.push_back(mn);
+}
+
+void CGScheduling::setDblkIdx_LU(){
+  dblk_idx.clear();
+  dblk_idx["L"] = blk_i*opti_para.axes["i"].num_blk+blk_l;
+  dblk_idx["U"] = blk_l*opti_para.axes["i"].num_blk+blk_j;
+  dblk_idx["A"] = blk_i*opti_para.axes["i"].num_blk+blk_j;
+  
+  //do something
+  (this->*func_iteration)();
+
+  macro_time++;
+}
+
+void CGScheduling::LoopStructure_LU(){
+  blk_m = opti_para.axes["i"].num_blk;
+
+  macro_time = 0;
+  if(opti_para.loop_order.loop_idc == array<string,3>{"i","j","l"}){
+    for(blk_i=0; blk_i<blk_m; blk_i++){
+      for(blk_j=0; blk_j<blk_m; blk_j++){
+	for(blk_l=0; blk_l<=min(blk_i,blk_j); blk_l++){
+	  setDblkIdx_LU();
+	}
+      }
+    }
+  }
+  else if(opti_para.loop_order.loop_idc == array<string,3>{"i","l","j"}){
+    for(blk_i=0; blk_i<blk_m; blk_i++){
+      for(blk_l=0; blk_l<=blk_i; blk_l++){
+	for(blk_j=blk_l; blk_j<blk_m; blk_j++){
+	  setDblkIdx_LU();
+	}
+      }
+    }
+  }
+  else if(opti_para.loop_order.loop_idc == array<string,3>{"j","l","i"}){
+    for(blk_j=0; blk_j<blk_m; blk_j++){
+      for(blk_l=0; blk_l<=blk_j; blk_l++){
+	for(blk_i=blk_l; blk_i<blk_m; blk_i++){
+	  setDblkIdx_LU();
+	}
+      }
+    }
+  }
+  else if(opti_para.loop_order.loop_idc == array<string,3>{"j","i","l"}){
+
+    for(blk_j=0; blk_j<blk_m; blk_j++){
+      for(blk_i=0; blk_i<blk_m; blk_i++){
+	  for(blk_l=0; blk_l<=min(blk_i,blk_j); blk_l++){
+	    setDblkIdx_LU();
+	  }
+      }
+    }
+  }
+  else if(opti_para.loop_order.loop_idc == array<string,3>{"l","i","j"}){
+    for(blk_l=0; blk_l<blk_m; blk_l++){
+      for(blk_i=blk_l; blk_i<blk_m; blk_i++){
+	for(blk_j=blk_l; blk_j<blk_m; blk_j++){
+	  setDblkIdx_LU();
+	}
+      }
+    }
+  }
+  else{
+    for(blk_l=0; blk_l<blk_m; blk_l++){
+      for(blk_j=blk_l; blk_j<blk_m; blk_j++){
+	for(blk_i=blk_l; blk_i<blk_m; blk_i++){
+	  setDblkIdx_LU();
+	}
+      }
+    }
+  }
+}
+
+void CGScheduling::MacroNodeGen_LU(){
+  int blk_m = opti_para.axes["i"].blk_dim;
+
+  kernal_out_dblk.insert("L");
+  kernal_out_dblk.insert("U");
+  //generate mns
+  map<string, dblk_info> dblks_info_lu;
+  dblks_info_lu["L"] = {"LU_L_Tr","L","mode_lu_ltr",opti_para.axes["i"].subblk_dim,0,blk_m,blk_m};
+  dblks_info_lu["U"] = {"LU_U_Tr","U","mode_lu_utr",0,opti_para.axes["j"].subblk_dim,blk_m,blk_m};
+  dblks_info_lu["A"] = {"LU_A","A","mode_lu_a",opti_para.axes["i"].subblk_dim, opti_para.axes["j"].subblk_dim,blk_m,blk_m};
+  mn_temp["lu"] = new MN_LU(blk_m, dblks_info_lu);
+  mn_temps.push_back(mn_temp["lu"]);
+
+  map<string, dblk_info> dblks_info_lucpl;
+  dblks_info_lucpl["A"] = {"LUCPL_A","A","mode_lu_a",opti_para.axes["i"].subblk_dim,opti_para.axes["j"].subblk_dim,blk_m,blk_m};
+  dblks_info_lucpl["U"] = {"LUCPL_U_Tr","U","mode_lu_utr",0,opti_para.axes["j"].subblk_dim,blk_m,blk_m};
+  dblks_info_lucpl["L"] = {"LUCPL_L", "L", "mode_lu_l", opti_para.axes["i"].subblk_dim,0,blk_m,blk_m};
+  mn_temp["lucpl"] = new MN_LUCPL(blk_m, dblks_info_lucpl);
+  mn_temps.push_back(mn_temp["lucpl"]);
+
+  map<string, dblk_info> dblks_info_trs;
+  dblks_info_trs["A"] = {"TRS_A_Tr","L","mode_lu_ltr",opti_para.axes["i"].subblk_dim,0,blk_m,blk_m};
+  dblks_info_trs["B"] = {"TRS_B","A","mode_lu_a",opti_para.axes["i"].subblk_dim,opti_para.axes["j"].subblk_dim,blk_m,blk_m};
+  dblks_info_trs["X"] = {"TRS_X","U","mode_lu_u",0,opti_para.axes["j"].subblk_dim,blk_m,blk_m};
+  dblks_info_trs["Brow"] = {"TRS_Brow","U","mode_lu_u",0,opti_para.axes["j"].subblk_dim,1,blk_m};
+  mn_temp["trs"] = new MN_TRS(blk_m, dblks_info_trs);
+  mn_temps.push_back(mn_temp["trs"]);
+  
+  map<string, dblk_info> dblks_info_mm;
+  dblks_info_mm["A"] = {"A","L","mode_mm_a",opti_para.axes["i"].subblk_dim, opti_para.axes["l"].subblk_dim, blk_m,blk_m};
+  dblks_info_mm["B"] = {"B","U","mode_mm_b",opti_para.axes["l"].subblk_dim, opti_para.axes["j"].subblk_dim, blk_m,blk_m};
+  dblks_info_mm["C"] = {"C","A","mode_mm_c",opti_para.axes["i"].subblk_dim, opti_para.axes["j"].subblk_dim, blk_m,blk_m};
+  mn_temp["submm"] = new MN_SUBMM(blk_m, blk_m, blk_m, dblks_info_mm);
+  mn_temps.push_back(mn_temp["submm"]);
+
+  load_store = shared_ptr<LoadStoreDblk>(new LoadStoreDblk);
+
+  num_compute_cycles = 0;
+  cycle = 0;
+  num_dram_read = 0;
+  num_dram_write = 0;
+  num_dram_spill = 0;
+  num_sram_update = 0;
+  num_spill_u = 0;
+  num_spill_l = 0;
+  num_spill_a = 0;
+
+  func_iteration = &CGScheduling::setDblkUseTime;
+  LoopStructure_LU();
+
+  func_iteration = &CGScheduling::runMacroNode_LU;
+  LoopStructure_LU();
+}
+
+
+
+void CGScheduling::runMacroNode_QR(){
+
+  in_dblk.clear();
+  out_dblk.clear();
+
+  string mn_temp_name;
+
+  if((blk_i == blk_l) && (blk_j == blk_l)){
+    //dblk need to read
+    in_dblk.insert("A");
+
+    out_dblk.insert("Q");
+    out_dblk.insert("R");
+  
+    mn_temp_name = "qr";
+  }
+  else if(blk_j == blk_l){
+    in_dblk.insert("A");
+    in_dblk.insert("R");
+
+    out_dblk.insert("Q");
+    out_dblk.insert("R");
+
+    mn_temp_name = "qrcpl";
+  }
+  else if(blk_i == blk_l){
+    in_dblk.insert("A");
+    in_dblk.insert("Q");
+
+    out_dblk.insert("R");
+
+    mn_temp_name = "qrupdatetr";
+  }
+  else{
+    in_dblk.insert("Q");
+    in_dblk.insert("R");
+    in_dblk.insert("A");
+
+    out_dblk.insert("A");
+    out_dblk.insert("R");
+
+    mn_temp_name = "qrupdate";
+  }
+
+  prepareDblks();
+  //mn
+  MacroNode mn(mn_temp[mn_temp_name], mns.size());
+  cycle += mn.mn_temp->cycle_length;
+  num_compute_cycles += mn.mn_temp->cycle_length;
+  total_use += mn.mn_temp->total_use;
+  use_sram += mn.mn_temp->use_sram;
+  use_pipe += mn.mn_temp->use_pipe;
+  mns.push_back(mn);
+}
+
+void CGScheduling::setDblkIdx_QR(){
+  dblk_idx.clear();
+  dblk_idx["Q"] = blk_i*opti_para.axes["i"].num_blk+blk_l;
+  dblk_idx["R"] = blk_l*opti_para.axes["i"].num_blk+blk_j;
+  dblk_idx["A"] = blk_i*opti_para.axes["i"].num_blk+blk_j;
+  
+  //do something
+  (this->*func_iteration)();
+
+  macro_time++;
+}
+
+void CGScheduling::LoopStructure_QR(){
+  blk_m = opti_para.axes["i"].num_blk;
+
+  macro_time = 0;
+  if(opti_para.loop_order.loop_idc == array<string,3>{"i","j","l"}){
+    for(blk_i=0; blk_i<blk_m; blk_i++){
+      for(blk_j=0; blk_j<blk_m; blk_j++){
+	for(blk_l=0; blk_l<=min(blk_i,blk_j); blk_l++){
+	  setDblkIdx_QR();
+	}
+      }
+    }
+  }
+  else if(opti_para.loop_order.loop_idc == array<string,3>{"i","l","j"}){
+    for(blk_i=0; blk_i<blk_m; blk_i++){
+      for(blk_l=0; blk_l<=blk_i; blk_l++){
+	for(blk_j=blk_l; blk_j<blk_m; blk_j++){
+	  setDblkIdx_QR();
+	}
+      }
+    }
+  }
+  else if(opti_para.loop_order.loop_idc == array<string,3>{"j","l","i"}){
+    for(blk_j=0; blk_j<blk_m; blk_j++){
+      for(blk_l=0; blk_l<=blk_j; blk_l++){
+	for(blk_i=blk_l; blk_i<blk_m; blk_i++){
+	  setDblkIdx_QR();
+	}
+      }
+    }
+  }
+  else if(opti_para.loop_order.loop_idc == array<string,3>{"j","i","l"}){
+    for(blk_j=0; blk_j<blk_m; blk_j++){
+      for(blk_i=0; blk_i<blk_m; blk_i++){
+	for(blk_l=0; blk_l<=min(blk_i,blk_j); blk_l++){
+	  setDblkIdx_QR();
+	}
+      }
+    }
+  }
+  else if(opti_para.loop_order.loop_idc == array<string,3>{"l","i","j"}){
+    for(blk_l=0; blk_l<blk_m; blk_l++){
+      for(blk_i=blk_l; blk_i<blk_m; blk_i++){
+	for(blk_j=blk_l; blk_j<blk_m; blk_j++){
+	  setDblkIdx_QR();
+	}
+      }
+    }
+  }
+  else{
+    for(blk_l=0; blk_l<blk_m; blk_l++){
+      for(blk_j=blk_l; blk_j<blk_m; blk_j++){
+	for(blk_i=blk_l; blk_i<blk_m; blk_i++){
+	  setDblkIdx_QR();
+	}
+      }
+    }
+  }
+}
+
+void CGScheduling::MacroNodeGen_QR(){
+  int blk_m = opti_para.axes["i"].blk_dim;
+
+  kernal_out_dblk.insert("Q");
+  kernal_out_dblk.insert("R");
+  //generate mns
+  map<string, dblk_info> dblks_info_qr;
+  mn_temp["qr"] = new MN_QR(blk_m, dblks_info_qr);
+  mn_temps.push_back(mn_temp["qr"]);
+
+  map<string, dblk_info> dblks_info_qrcpl;
+  mn_temp["qrcpl"] = new MN_QRCPL(blk_m, dblks_info_qrcpl);
+  mn_temps.push_back(mn_temp["qrcpl"]);
+
+  map<string, dblk_info> dblks_info_qrupdatetr;
+  mn_temp["qrupdatetr"] = new MN_QRUpdateTr(blk_m, dblks_info_qrupdatetr);
+  mn_temps.push_back(mn_temp["qrupdatetr"]);
+  
+  map<string, dblk_info> dblks_info_qrupdate;
+  mn_temp["qrupdate"] = new MN_QRUpdate(blk_m, dblks_info_qrupdate);
+  mn_temps.push_back(mn_temp["qrupdate"]);
+
+  load_store = shared_ptr<LoadStoreDblk>(new LoadStoreDblk);
+
+  cout << "creat all mn temp " << endl;
+
+  num_compute_cycles = 0;
+  cycle = 0;
+  num_dram_read = 0;
+  num_dram_write = 0;
+  num_dram_spill = 0;
+  num_sram_update = 0;
+
+
+  func_iteration = &CGScheduling::setDblkUseTime;
+  LoopStructure_QR();
+
+  cout << "set dblk use" << endl;
+
+  func_iteration = &CGScheduling::runMacroNode_QR;
+  LoopStructure_QR();
+}
+
+
+
+void CGScheduling::MacroNodeGen(){
+  if(app == "MM"){
+    MacroNodeGen_MM();
+  }
+  else if(app == "LU"){
+    MacroNodeGen_LU();
+  }
+  else if(app == "QR"){
+    MacroNodeGen_QR();
+  }
+}
 
 void CGScheduling::PrintPerf(){
-  cout << "number of cycles: " << num_cycles << endl;
-  cout << "number of spills: " << spills_sche.size() << endl;
-  cout << "number of bankexs: " << bankexs_sche.size() << endl;
-  mem->getMaxNumLive();
-  cout << "bank usage: ";
-  for(int i=0; i<mem->max_num_live.size(); i++){
-    cout << mem->max_num_live[i] << ",";
-  }
   cout << endl;
+  cout << "Number of cycles: " << cycle << endl;
+  cout << "Number of compute cycles: " << num_compute_cycles << endl;
+  cout << "Number of total use: " << total_use << endl;
+  cout << "Number of use from sram: " << use_sram << endl;
+  cout << "Number of use from pipe: " << use_pipe << endl;
+  cout << "Number of dram read: " << num_dram_read << endl;
+  cout << "Number of dram write: " << num_dram_write << endl;
+  cout << "Number of dram spill: " << num_dram_spill << endl;
+  cout << "Number of spill u : " << num_spill_u << endl;
+  cout << "Number of spill l : " << num_spill_l << endl;
+  cout << "Number of spill a : " << num_spill_a << endl;
+  cout << "Number of sram update: " << num_sram_update << endl;
+ // mem->getMaxNumLive();
 }
 
 

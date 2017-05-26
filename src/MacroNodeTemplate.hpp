@@ -8,106 +8,126 @@
 #include "Tile.hpp"
 #include "Hardware.hpp"
 #include "Memory.hpp"
+#include "DataBlock.hpp"
+#include "ComputationGraph.hpp"
 
 using namespace std;
 
-//struct rw_info{
-//  int cycle;
-//  array<int,2> addr;
-//};
+struct dblk_info{
+  string matrix_name;
+  string region_name;
+  string elm_spaddr_mode;
+  int subblk_dimi;
+  int subblk_dimj;
 
-struct tile_sche{
-  int start;
-  int end;
-  int tile_idx;
-  int cb_idx;
-  map<int,rw_info> inop;
-  map<int,rw_info> outop;
-};
-
-struct spill_sche{
-  int op;
-  int latency;
-  bool only_read;
-  int cond;
-  int start;
-  int end;
-  int start_membank;
-  int end_membank;
-};
-
-struct bankex_sche{
-  int op;
-  int latency=2;
-  int start;
-  int end;
-  int start_membank;
-  int end_membank;
+  int dimi;
+  int dimj;
 };
 
 class MacroNodeTemplate{
   public:
-    MacroNodeTemplate(string in_name);
-    MacroNodeTemplate(vector<Operation> &in_ops, vector<Tile> &in_tiles, string in_name);
+    MacroNodeTemplate(){};
     ~MacroNodeTemplate(){};
 
-    void MN_mtxmul(int in_m, int in_n, int in_k, bool sche);
-    void MN_load(int tile_width, bool sche);
-    void MN_store(int tile_width, bool sche);
-    void MN_2load_mtxmul(int m, int n, int k, bool sche);
-    void MN_load1_mtxmul(int m, int n, int k, bool sche);
-    void MN_load2_mtxmul(int m, int n, int k, bool sche);
-    void GetScheduling();
+    void buildDblks();
+    void genScheduling();
 
-    //ops, tils inside mn
-    vector<Operation> ops;
-    vector<Tile> tiles;
+    map<string, dblk_info> dblks_info;
+    map<string, shared_ptr<DataBlock>> dblks;
+    map<string, vector<vector<int>>> mtx;
 
+    ComputationGraph* p_cg;
 
-    //For scheduling tiles (allocate liveranges)
-    //*************************************
-    //data determined by scheduling
-    vector<tile_sche> tiles_sche;
-
-    vector<spill_sche> spills_sche;
-    vector<bankex_sche> bankexs_sche;
-    
     shared_ptr<MemoryTrack> mem;
+    
+    string name;
+    int cycle_length;
+    int total_use;
+    int use_sram;
+    int use_pipe;
+};
 
-    map<int,int> op_in_cycle;	
-    map<int,int> inop_firstread;
-    //key: op idx in mn, value: cycle to read op for the first time
+class MN_mtxmul: public MacroNodeTemplate{
+  public:
+  MN_mtxmul(bool is_add, int in_m, int in_n, int in_k, map<string, dblk_info>& in_dblks_info);
+  ~MN_mtxmul(){};
 
-    //io ops
-    //just need to update mem port usage in mem
+  int m;
+  int n;
+  int k;
+};
+
+class MN_LU: public MacroNodeTemplate{
+  public:
+    MN_LU(int in_n, map<string, dblk_info>& in_dblks_info);
+    ~MN_LU(){};
+
+    int n;
+};
+
+//LU complement
+class MN_LUCPL: public MacroNodeTemplate{
+  public:
+    MN_LUCPL(int in_n, map<string, dblk_info>& in_dblks_info);
+    ~MN_LUCPL(){};
+
+    int n;
+};
+
+class MN_TRS: public MacroNodeTemplate{
+  public:
+    MN_TRS(int in_n, map<string, dblk_info>& in_dblks_info);
+    ~MN_TRS(){};
+
+    int n;
+};
+
+class MN_SUBMM: public MacroNodeTemplate{
+  public:
+    MN_SUBMM(int in_m, int in_n, int in_k, map<string, dblk_info>& in_dblks_info);
+    ~MN_SUBMM(){};
+
+    int n;
+};
+
+class MN_QR: public MacroNodeTemplate{
+  public:
+    MN_QR(int in_n, map<string, dblk_info>& in_dblks_info);
+    ~MN_QR(){};
+
+    int n;
+};
+
+class MN_QRCPL: public MacroNodeTemplate{
+  public:
+    MN_QRCPL(int in_n, map<string, dblk_info>& in_dblks_info);
+    ~MN_QRCPL(){};
+
+    int n;
+};
+
+class MN_QRUpdateDiag: public MacroNodeTemplate{
+  public:
+    MN_QRUpdateDiag(int in_m, int in_n, map<string,dblk_info>& in_dblks_info);
+    ~MN_QRUpdateDiag(){};
+
     int m;
     int n;
-    int k;
+};
 
-    int tile_m;
-    int tile_n;
-    int tile_k;
+class MN_QRUpdateTr: public MacroNodeTemplate{
+  public:
+    MN_QRUpdateTr(int in_n, map<string,dblk_info> &in_dblks_info);
+    ~MN_QRUpdateTr(){};
 
-    vector<vector<int>> Ain;   
-    vector<vector<int>> Bin;   
-    vector<vector<int>> Cin;   
-    vector<vector<int>> Cout;   
+    int n;
+};
 
-    map<int,array<int,2>> ioop_addr;
-    //key: io op, value: mem addr
-
-    int A_base;
-    int B_base;
-    int Cin_base;
-    int Cout_base;
-
-
-    vector<int> max_num_live;
-    //*************************************
-
-    string name;
-
-    int cycle_length;
+class MN_QRUpdate: public MacroNodeTemplate{
+  public:
+    MN_QRUpdate(int in_n, map<string,dblk_info> &in_dblks_info);
+    ~MN_QRUpdate(){};
+    int n;
 };
 
 #endif

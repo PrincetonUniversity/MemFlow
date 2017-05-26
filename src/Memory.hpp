@@ -3,16 +3,58 @@
 
 #include <vector>
 #include <map>
+#include <queue>
+#include <utility>
 
 #include "Hardware.hpp"
 #include "OptiMacroNode.hpp"
+#include "Data.hpp"
 
 using namespace std;
 
+extern map<string, DataArray*> data_arrays;
+
+class SPRegion{
+  public:
+  SPRegion(){};
+  SPRegion(string in_name, int in_start_bank, int in_end_bank);
+  ~SPRegion(){};
+
+  void setupSPRegion(int in_num_blks);
+  void updateNextBase2Replace(int changed_base);
+  
+  string name;
+  int start_bank;
+  int end_bank;
+  int num_blks;
+
+  vector<int> dblk_idx;
+  queue<int> next_empty;
+
+  int farest_next_use;
+  int next_base_2replace;
+};
+
+struct SPBaseComp{
+  bool operator()(const pair<SPRegion*,int>& b1, const pair<SPRegion*,int>& b2){
+    int dblk1 = b1.first->dblk_idx[b1.second];
+    int dblk2 = b2.first->dblk_idx[b2.second];
+    int next_use1 = data_arrays[b1.first->name]->dblks[dblk1].next_use_t.front();
+    int next_use2 = data_arrays[b2.first->name]->dblks[dblk2].next_use_t.front();
+    return (next_use1 < next_use2);
+  }
+};
+
+//struct DblkAddr{
+//  string region;
+//  int base;
+  //DblkAddr(){};
+  //DblkAddr(string in_region, int in_base):region(in_region),base(in_base){};
+//};
+
 class MemoryTrack{
   public:
-    MemoryTrack(Parameters &in_opti_para);
-    MemoryTrack(vector<int> &ops, Parameters &in_opti_para);
+    MemoryTrack();
     ~MemoryTrack(){};
 
     void setBankSize(int bank_i, int size);
@@ -52,11 +94,17 @@ class MemoryTrack{
     int getLastCycle();
 
     void getMaxNumLive();
+  
+    void PrintInfo();
+
 
     int begin;
 
     int num_bank;
     vector<MemBank> membanks;   
+
+    int total_port;
+    int total_size;
 
     int a_base;
     int b_base;
@@ -76,34 +124,22 @@ class MemoryTrack{
 
     vector<int> max_num_live;
 
+    Parameters* opti_para;
 
-
-
-
+    void getOptiPara(Parameters* in_opti_para);
     void Slice2Dblks();
-    int getBase_a(int blk_idx);
-    int getBase_b(int blk_idx);
-    int getBase_c(int blk_idx);
-    array<int,2> getAddr_a_ele(int base, int m, int n, int i, int j);
-    array<int,2> getAddr_b_ele(int base, int m, int n, int i, int j);
-    array<int,2> getAddr_c_ele(int base, int m, int n, int i, int j, int in_out_latency);
+    void Slice2Dblks_debug();
+    void Slice2Dblks_buffer();
 
-    Parameters& opti_para;
-    int num_bank_a;
-    int num_bank_b;
-    int num_bank_c;
+    DblkAddr getDblkAddr(string mtx_name, int blk_idx);
+    array<int,2> getAddr_a_ele(DblkAddr dblk_addr, int m, int n, int i, int j);
+    array<int,2> getAddr_b_ele(DblkAddr dblk_addr, int m, int n, int i, int j);
+    array<int,2> getAddr_c_ele(DblkAddr dblk_addr, int m, int n, int i, int j, int in_out_latency);
 
-    int a_region;
-    int b_region;
-    int c_region;
-    
-    //slice mem into a,b,c regions
-    //vector length: number of blks in this region
-    //vector value: dblk being stored
-    vector<int> a;
-    vector<int> b;
-    vector<int> c;
+    //Parameters& opti_para;
+    map<string, SPRegion> sp_regions;
 
+    map<string, int> blk_interval;
 };
 
 #endif

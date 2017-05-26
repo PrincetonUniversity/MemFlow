@@ -1,7 +1,2 @@
-Memory: banksize, number_port
-40, 2
-40, 2
-40, 2
-40, 2
-40, 2
-40, 2
+Memory: #banks, bank size(Bytes), #ports/bank 
+1232, 4096, 2

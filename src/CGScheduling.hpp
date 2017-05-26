@@ -8,118 +8,101 @@
 #include "./Scheduling.hpp"
 #include "Memory.hpp"
 #include "Setting.hpp"
+#include "MacroNodeTemplate.hpp"
 
 using namespace std;
 
-struct load_dblk{
-  int dblk_idx;
-  int mem_base;
-};
+extern vector<MacroNodeTemplate*> mn_temps;
 
-struct store_dblk{
-  int dblk_idx;
-  int mem_base;
-};
+//typedef void (*func_p)(int,int,int,int);
 
 class CGScheduling{
   public:
-    CGScheduling(ComputationGraph &in_cg, MemoryTrack &in_global_mem);
+    CGScheduling();
     ~CGScheduling();
 
-    //partition computation into macronodes
-    void SetMNDep();
-    void SetDep();
-    void PrintDep();
-    void MacroNodeGen(int blk_dimi_tile, int blk_dimj_tile, int blk_diml_tile);
-    void PrintMacroNodes();
+    void LoopIteration(int blk_i, int blk_j, int blk_l);
+    void genDblks(string mtx_name, int m, int n, int blk_dimi, int blk_dimj);
+    void MacroNodeGen();
+    void MacroNodeGen_buffer();
+ 
+    void setDblkUseTime();
+    void prepareDblks();
 
-    //process data structure
-    void ExtendRecordData(int to_size);
-    void ExtendRecordData(int to_size, vector<vector<int>> &new_num_port, vector<vector<int>> &new_num_live, map<int,vector<int>> &new_op_in_bank);
+    void setDblkIdx_MM();
+    void runMacroNode_MM();
+    void LoopStructure_MM();
+    void MacroNodeGen_MM();
 
-    void add_mn(int cycle, MacroNode* mn, vector<vector<int>> &new_num_port, vector<vector<int>> &new_num_live);
-    void remove_mn(int cycle, MacroNode* mn, vector<vector<int>> &new_num_port, vector<vector<int>> &new_num_live);
-
-    void UpdateMNCycle(int old_cycle, int new_cycle, shared_ptr<MemoryTrack>& new_mem, MacroNode* mn, vector<int>& nonspill_op);
-    int FindCycle(MacroNode* mn);	
-
-    //allocate each macronode
-    void AllocateMN(MacroNode* mn, int cycle);
-
-
-    void FindCycle_balancedbank(MacroNode* mn);
-    void AllocateMN_balancedbank(MacroNode* mn, int cycle);
-
-    void genMNOrder(vector<int>& order);
-    //schedule each macronode
-    void AllocateDblks();
-    void Scheduling();
-
-    void PrintScheduling();
-    void PrintSpill();
-    void PrintBankex();
+    void setDblkIdx_LU();
+    void runMacroNode_LU();
+    void LoopStructure_LU();
+    void MacroNodeGen_LU();
+    
+    void setDblkIdx_QR();
+    void runMacroNode_QR();
+    void LoopStructure_QR();
+    void MacroNodeGen_QR();
+    
     void PrintPerf();
 
-    //input: computation graph (ops, tiles)
-    ComputationGraph& cg;	
-    MemoryTrack& global_mem;
+    int blk_m;
+    int blk_n;
+    int blk_k;
+
+    int blk_i;
+    int blk_j;
+    int blk_l;
+
+    int dblks_base_a;
+    int dblks_base_b;
+    int dblks_base_c;
+
+    map<string,MacroNodeTemplate*> mn_temp;
+
+    shared_ptr<LoadStoreDblk> load_store;
 
     //partition computation graph into macronodes
-    vector<MacroNode*> mns;
-    vector<DataBlock*> dblks;
+    vector<MacroNode> mns;
+    vector<DataBlock> dblks;
 
-    vector<shared_ptr<DataBlock>> dblks_ptr;
+    map<string,int> dblk_idx;
+    set<string> in_dblk;
+    set<string> out_dblk;
+    set<string> kernal_out_dblk;
 
-    vector<int> mn_order;
-    vector<vector<load_dblk>> load;
-    vector<vector<store_dblk>> store;
+    MemoryTrack& mem;
 
-    //output
-    vector<tile_sche> tiles_sche;
-    vector<spill_sche> spills_sche;
-    vector<bankex_sche> bankexs_sche;
+    unsigned long long cycle;
+    unsigned long long total_use;
+    unsigned long long use_sram;
+    unsigned long long use_pipe;
+    unsigned long long num_compute_cycles;
+    unsigned long long num_spills;
+    unsigned long long num_dram_read;
+    unsigned long long num_dram_write;
+    unsigned long long num_dram_spill;
+    unsigned long long num_sram_update;
+    unsigned long long num_blk_replaced_a;
+    unsigned long long num_blk_replaced_b;
+    unsigned long long num_blk_replaced_c;
 
-    //data structures used to help global scheduling
-    vector<vector<int>> new_num_port;
-    vector<vector<int>> new_num_live;
-    map<int,vector<int>> new_op_in_bank;
-
-    vector<vector<int>> test_num_port;
-    vector<vector<int>> test_num_live;
-    map<int,vector<int>> test_op_in_bank;
-
-
-    vector<bankex_sche> bankex_x_mn;
-    vector<spill_sche> spill_x_mn;
-
-    map<int, int> mn_startcycle;	
-
-    int begin_cycle;
-    map<int,vector<int>> op_in_bank;
-    vector<vector<int>> num_port;
-    vector<vector<int>> num_live;
-
-    map<int,set<int>> op_usermn;
-    map<int,int> op_in_cycle;
-
-    shared_ptr<MemoryTrack> mem;
-    shared_ptr<MemoryTrack> new_mem;
+    unsigned long long num_spill_u;
+    unsigned long long num_spill_l;
+    unsigned long long num_spill_a;
 
 
-    int num_cycles;
+    int num_dblk_write;
+ 
+    int macro_time;
+    //int load_latency;
+    //int store_latency;
 
-    int load_latency;
-    int store_latency;
-};
+    map<string, uint64_t> load_latency;
+    map<string, uint64_t> store_latency;
 
-class MacroNodePriority{
-  public:
-    MacroNodePriority(int in_mn_idx, CGScheduling* in_sche);
-
-    int mn_idx;
-    CGScheduling* sche;
-
-    int priority;
+    typedef void(CGScheduling::*func_p)();
+    func_p func_iteration;
 };
 
 #endif

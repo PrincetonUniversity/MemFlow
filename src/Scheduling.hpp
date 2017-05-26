@@ -27,18 +27,31 @@ struct lr_size;
 
 class TileScheduling;
 
+struct event{
+  int op;
+  char r_or_w;
+
+  event(int in_op, char in_r_w):op(in_op),r_or_w(in_r_w){};
+  friend bool operator<(const event& e1, const event& e2){
+    return (e1.op < e2.op);
+  }
+  friend bool operator==(const event& e1, const event& e2){
+    return (e1.op == e2.op);
+  }
+};
+
 class StageEvents{
   public: 
     StageEvents(){produced_out = false;};
     ~StageEvents(){};
 
-    void Enqueue(set<int> &ops);
+    void Enqueue(set<event> &ops);
     void Dequeue();
 
-    set<int> ops;
+    set<event> ops; //op,'r'or'w'
     bool produced_out;
     bool stall;
-    queue<set<int>> q_ops;
+    queue<set<event>> q_ops;
 };
 
 class CBEvents{
@@ -51,121 +64,24 @@ class CBEvents{
 
     int num_stage;
     vector<StageEvents> stage_events;
+
+    bool finished = false;
 };
 
-class Liverange{
-  public:
-    Liverange(TileScheduling* in_sche){sche = in_sche;};
-    ~Liverange(){};
-
-    void GetLiverange(int in_op, int cycle);
-    void UpdateLiverange(int old_read_cycle, int new_read_cycle);
-    void UpdateLR(int tile, int new_read_cycle);
-    //get the liverange where op located in at cycle
-    void RemoveLRfromMem(vector<vector<int>>* new_num_port, vector<vector<vector<int>>>* new_num_live);
-    void RemoveLRfromMem(vector<vector<int>>* new_num_port, vector<vector<vector<int>>>* new_num_live, vector<int> &num_port_left);
-    void AddLRtoMem(vector<vector<int>>* new_num_port, vector<vector<vector<int>>>* new_num_live);
-    void AddLRtoMem(vector<vector<int>>* new_num_port, vector<vector<vector<int>>>* new_num_live, vector<int> &num_port_left);
-    void CanAddLRtoMem(vector<vector<int>>* new_num_port, vector<vector<vector<int>>>* new_num_live);
-    void PrintLR();
-
-    TileScheduling* sche;
-    int op;
-    int mem_bank;
-    int mem_loc;
-    bool allocated;
-    int write_cycle; //start at write_cycle+1
-    int last_cycle;
-    set<int> read_cycles;
-
-    bool can_add;
-    string cause;//cause of failing to add lr
-};
-
-class TilePriority{
-  public:
-    TilePriority(int tile, TileScheduling* sche);
-    ~TilePriority(){};
-
-    void UpdatePriority();
-
-    int tile;
-    TileScheduling* sche;
-
-    int priority;
-};
 
 class TileScheduling{
   friend class SAOptimizer;
   public:
-  TileScheduling(MacroNodeTemplate &in_macro, int in_mode);
-  ~TileScheduling(); 
-
-  //starting scheduling
-  void InitScheduling_best();
-
-  //Schedule tiles in given memory space (allocate all live ranges with the help of spilling and bankex)
-  void Scheduling();
-
-  bool CanAddLRstoMem_bf(set<Liverange*> &lrs, vector<vector<int>> &num_port, vector<vector<vector<int>>> &num_live);
-  bool CanAddLRstoMem(set<Liverange*> &lrs, vector<vector<int>> &num_port, vector<vector<vector<int>>> &num_live);
-
-  void ExtendMemData(int max_cycle);
-  void ExtendMemData(int max_cycle, vector<vector<int>>& new_num_port, vector<vector<vector<int>>>& new_num_live);
-  void ExtendNumCB(int max_cycle);
-  void ExtendOpinBank(int max_cycle);
-
-  bool AllocateLiveout(int cycle, int tile);
-  bool RemoveLiveinLR(int cycle, int tile);
-  bool CanAddwithMaxSpilling(int cycle, int tile);
-  void RemoveSpilling(int tile);
-
-  bool CheckCycle(int cycle, int tile);
-  bool CheckCycle_MN(int cycle, int tile);
-  void AllocateTile(int cycle, int tile);
-  bool HasReadWrite(int cycle, int tile);
-  void ScheduleTile(int tile);
- 
-  bool MoveBarrierRead(int tile, int op, int orig_read, int tile_sche_idx);
-  int FindCycle_dblks(int tile, int tile_sche_idx, map<int,int>&inop_read_cycle);
-  void FindCB_dblks(int tile);
-  void AllocateTile_dblks(int tile, int cycle, int cb_idx, map<int,int> &read_cycle);
-
-  void Scheduling_subblk(int subblk_i, int subblk_j, int subblk_l);
-  void getBlkDimij();
+  TileScheduling(MacroNodeTemplate* in_macro, int in_mode);
+  ~TileScheduling(){}; 
 
   int Executing_cbs();
   void Scheduling_pipe();
-
-  void PrintNumPort(int mem_bank);
-  void PrintNumLive(int mem_bank);
-
-  bool PassTileDependency();
-  bool PassValidSpill();
-  bool PassCBBound();
-  bool PassPortBound();
-  bool PassMemoryBound();
-  bool Testing();
-
-  void PrintScheduling();
-
-  void GetNumCBMax();
-  void PrintNumCBMax();
-
-  void PrintPerf();
-
-  //private:
-  int max_cycle;
-  //int store_latency;
-  //int load_latency;
+  void Scheduling_pipe_debug();
 
   int mode; 
 
-  map<int, vector<int>> op_spills;
-  //key: op idx, vector: spill idx
-  MacroNodeTemplate& macro;
-  vector<int> cb_tile_sche;
-  //last tile_sche that use this cb
+  MacroNodeTemplate* macro;
   map<int, set<int>> op_read_cycles;
 
   int num_cbs;
@@ -177,55 +93,10 @@ class TileScheduling{
   int subblk_n;
   int subblk_k;
 
-  vector<CBEvents> cb_events;
-
-
-  //int num_type; 
-  //num of compute tile type in the current scheduling
+  map<string, vector<CBEvents>> cb_events;
   int last_cycle;
-  //num of cycles in the current scheduling
-  int sum_cycle;
 
-  //hw allocation
-  map<string,vector<int>> num_cb;
-  //key:hw type, set:cycles it being occupied
-
-  map<string, int> num_cb_max;
-
-  vector<int> num_port_left;
-
-  //option for condition updates
-  map<int,vector<tile_sche>> tile_slack; 
-  //key:tile, set:cycles it can start with
-  map<int,vector<spill_sche>> spill0_slack; 
-  //key:spill idx, set:cycles it can be activated with
-  map<int,vector<spill_sche>> spill1_slack;
-  //key1:spill idx, key2: 0 start 1 end, set:cycles it can be placed
-
-  //data structure for checking tile allocation
-  vector<vector<int>> new_num_port;
-  vector<vector<vector<int>>> new_num_live;
-
-  map<int, int> spillidx;
-  map<int, Liverange*> tileout_lrs;
-  map<int, Liverange*> tilein_lrs;
-  //map<int, array<int,3>> bankex_to_alloc;
-
-  map<int, Liverange*> original_inop_lrs;
-  map<int, Liverange*> updated_inop_lrs;
-  map<int, Liverange*> spill_lrs;
-  map<int, Liverange*> bankex_lrs;
-
-  int total_port;
-
-  int store_latency;
-  int load_latency;
-  int memory_size;
-  int read_bound;
-  int write_bound;
-
-  vector<int> cycle_delta;
-
+  map<int, int> intermediate_ops;
 };
 
 #endif

@@ -21,7 +21,7 @@ public:
 
 	ComputeBlock* cb;
 	string pattern_name;
-	string cpsection_name;
+	string mn_name;
 
 	int latency;
 	vector<int> num_read;

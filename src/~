@@ -1,1488 +1,1050 @@
 #include<iostream>
+#include<fstream>
+#include<climits>
 #include<vector>
 #include<array>
-#include<queue>
-#include<string>
-#include<map>
-#include"math.h"
 
-#include "Pattern.hpp"
+#include "OptiMacroNode.hpp"
 #include "Setting.hpp"
 
 using namespace std;
 
-//map<string, int> num_cb = {
-//{"load", 10},
-//{"store", 10},
-//{"sub", 10},
-//{"div", 10},
-//{"div_root", 10}
-//};
+LoopOrder::LoopOrder(string loop1, string loop2, string loop3){
+  loop_idc[0] = loop1;
+  loop_idc[1] = loop2;
+  loop_idc[2] = loop3;
 
-vector<MacroNodeTemplate*> mn_temps;
-
-
-void Transpose_mtx(vector<vector<int>> &in_mtx, vector<vector<int>> &out_mtx);
-
-// class Pattern
-void Pattern::PrintOps(vector<Operation> &ops){
-	
-	cout << endl;
-	cout << name << endl;
-	cout << description << endl;
-	cout << cp << endl;
-	for(vector<PatternUnit>::iterator pu=pus.begin(); pu!=pus.end(); pu++){
-	   for(vector<int>::iterator op=pu->ops.begin(); op!=pu->ops.end(); op++){
-	      cout << "op " << *op << ": ";
-	      for(vector<int>::iterator i=ops[*op].in.begin(); i!=ops[*op].in.end(); i++){
-	         cout << *i << " ";
-	      }
-	      cout << ops[*op].fu.name << endl;
-	      cout << "   out: ";
-	      for(set<int>::iterator i=ops[*op].out.begin(); i!=ops[*op].out.end(); i++){
-	         cout << *i << " ";
-	      }
-	      cout << endl;
-	      cout << "   tile: " << ops[*op].tile << endl;
-	   }
-	}
-
+  set = true;
 }
-
-// use cb defined in pattern to tile up the pattern
-void Pattern::TileGen(vector<Tile> &tiles, vector<Operation> &ops){
-
-	//pattern unit wait to be added to tiles
-	list<PatternUnit> wait;
-
-	//pattern units that ready to be added to a new compute block
-	queue<PatternUnit> ready;
-
-	//initialize these two
-	set<int> ops_wait;
-	for(vector<PatternUnit>::iterator pu=pus.begin(); pu!=pus.end(); pu++){
-	   for(vector<int>::iterator op=pu->ops.begin(); op!=pu->ops.end(); op++){
-	      ops_wait.insert(*op);
-	   }
-	}
-
-	for(vector<PatternUnit>::iterator pu=pus.begin(); pu!=pus.end(); pu++){
-	   //examine each pattern unit
-	   int is_ready = 1;
-
-	   set<int> ops_inpu;
-	   for(vector<int>::iterator op=pu->ops.begin(); op!=pu->ops.end(); op++){
-	      ops_inpu.insert(*op);
-	   }
-	   
-	   //examine all inputs of all ops in the pattern unit
-	   for(vector<int>::iterator op=pu->ops.begin(); op!=pu->ops.end(); op++){
-	      for(vector<int>::iterator op_in=ops[*op].in.begin(); op_in!=ops[*op].in.end(); op_in++){
-	         // input op idx: *op_in
-	         if(ops_wait.find(*op_in)!=ops_wait.end() && ops_inpu.find(*op_in)==ops_inpu.end()){
-	            is_ready = 0;
-	         }
-	      }	      
-	   }
-
-	   if(is_ready){
-	      //put this pattern units into ready queue
-	      ready.push(*pu);
-	   }
-	   else{
-	      wait.push_back(*pu);
-	   }
-	}
-
-
-	while(!ready.empty()){
-	   Tile tile(cb);
-	   int count_pu_added = 0;
-	   while(count_pu_added<cb->width && !ready.empty()){
-	      PatternUnit pu_toadd = ready.front();
-	      ready.pop();
-	
-	      //add the whole pu into tile and update ops_wait
-	      for(vector<int>::iterator op=pu_toadd.ops.begin(); op!=pu_toadd.ops.end(); op++){
-	         tile.ops.push_back(*op);
-	         ops[*op].tile = tiles.size();
-	         ops_wait.erase(*op);
-
-	      }
-
-	      count_pu_added++;
-	   }
-	   
-	   //add other pu that depend on ready
-	   while(count_pu_added<cb->width*cb->max_depth && !wait.empty()){
-	      //check each pu in wait
-	      vector<list<PatternUnit>::iterator> pus_toadd;
-	      for(list<PatternUnit>::iterator pu=wait.begin(); pu!=wait.end(); pu++){
-	         int can_add = 1;
-
-	         set<int> ops_inpu;
-	         for(vector<int>::iterator op=pu->ops.begin(); op!=pu->ops.end(); op++){
-	            ops_inpu.insert(*op);
-	         }
-
-		 for(vector<int>::iterator op=pu->ops.begin(); op!=pu->ops.end(); op++){
-	            for(vector<int>::iterator op_in=ops[*op].in.begin(); op_in!=ops[*op].in.end(); op_in++){
-		       if(ops_wait.find(*op_in)!=ops_wait.end() && ops_inpu.find(*op_in)==ops_inpu.end()){
-	                  can_add = 0;
-	               }
-	            }
-	         }
-
-	         if(can_add){
-	            pus_toadd.push_back(pu);
-	         }
-	      }
-
-	      if(pus_toadd.empty()){
-	         break;
-	      }
-	      else{
-		 for(size_t i=0; i<pus_toadd.size(); i++){
-	            for(vector<int>::iterator op=pus_toadd[i]->ops.begin(); op!=pus_toadd[i]->ops.end(); op++){
-		       tile.ops.push_back(*op);
-	               ops[*op].tile = tiles.size();
-	               ops_wait.erase(*op);
-	            }
-	            wait.erase(pus_toadd[i]);
-		    count_pu_added++;
-	         }
-
-              }
-	   }
-
-	   //real depth of used cb
-	   if(cb->max_depth != 1){
-	      int cb_real_depth = count_pu_added / cb->width;
-	      tile.latency = cb->GetRealLatency(cb_real_depth);
-	   }
-	   else{
-	      tile.latency = cb->latency;
-	   }
-	   
-	   //update ready queue
-	   vector<list<PatternUnit>::iterator> pus_ready;
-	   for(list<PatternUnit>::iterator pu=wait.begin(); pu!=wait.end(); pu++){
-	      int is_ready = 1;
-
-	      set<int> ops_inpu;
-	      for(vector<int>::iterator op=pu->ops.begin(); op!=pu->ops.end(); op++){
-	         ops_inpu.insert(*op);
-	      }
-
-	      for(vector<int>::iterator op=pu->ops.begin(); op!=pu->ops.end(); op++){
-	         for(vector<int>::iterator op_in=ops[*op].in.begin(); op_in!=ops[*op].in.end(); op_in++){
-	            if(ops_wait.find(*op_in)!=ops_wait.end() && ops_inpu.find(*op_in)==ops_inpu.end()){
-	               is_ready = 0;
-	            }
-	         }
-	      }
-
-	      if(is_ready){
-	         ready.push(*pu);
-	         pus_ready.push_back(pu);
-	      }
-	   }
-	   for(size_t i=0; i<pus_ready.size(); i++){
-	      wait.erase(pus_ready[i]);
-	   }
-	   
-           tile.pattern_name = name;
-	   tile.cpsection_name = cp;
-	   tiles.push_back(tile);
-	   tiles_idx.push_back(tiles.size()-1);
-
-	}
-
-}
-
 /*
-void Pattern::MacroNodeGen(int mn_width, int mn_depth, vector<Tile> &tiles, MacroNode &mn_template, vector<MacroNode>& mns){
-	queue<int> ready;
-	list<int> wait;
-	set<int> added;
+void LoopOrder::setupLoopOrder(OptiMacroNode* opti_mn){
+  //set nospill matrix
+  matrix_nospill = (loop_idc[2] == "m")?"B":(loop_idc[2] == "n")?"A":"C";
+  if(matrix_nospill == "A"){
+    if(loop_idc[0] == "m"){
+      matrix_spilltype1 = "C";
+      dblk1_size = opti_mn->c;
+      num_dblk1_mem = opti_mn->num_cblk_mem;
+      num_dblk1_need = opti_mn->blk_n;
+      num_reuse1 = opti_mn->blk_k;
+      num_iterate = opti_mn->blk_m;
+      idx_mode1 = COL_IDX;
 
-	//initialize these two
-	for(vector<int>::iterator t=tiles_idx.begin(); t!=tiles_idx.end(); t++){
-	   //tile idx: *t
-	   bool is_ready = true;
-	   for(vector<int>::iterator pred_t=tiles[*t].pred_tiles.begin(); pred_t!=tiles[*t].pred_tiles.end(); pred_t++){
-	      if(*pred_t >= tiles_idx[0]){
-	         is_ready = false;
-		 break;
-	      }
-	   }
-	   if(is_ready){
-	      ready.push(*t);
-	   }
-	   else{
-	      wait.push_back(*t);
-	   }
-	}
+      matrix_spilltype2 = "B";
+      dblk2_size = opti_mn->b;
+      num_dblk2_mem = opti_mn->num_bblk_mem;
+      num_dblk2_need = opti_mn->blk_k*opti_mn->blk_n;
+      num_reuse2 = opti_mn->blk_m;
+      idx_mode2 = ROWMAJOR_IDX;
+    }
+    else{
+      matrix_spilltype1 = "B";
+      dblk1_size = opti_mn->b;
+      num_dblk1_mem = opti_mn->num_bblk_mem;
+      num_dblk1_need = opti_mn->blk_n;
+      num_reuse1 = opti_mn->blk_m;
+      num_iterate = opti_mn->blk_k;
+      idx_mode1 = COL_IDX;
+      
+      matrix_spilltype2 = "C";
+      dblk2_size = opti_mn->c;
+      num_dblk2_mem = opti_mn->num_cblk_mem;
+      num_dblk2_need = opti_mn->blk_m*opti_mn->blk_n;
+      num_reuse2 = opti_mn->blk_k;
+      idx_mode2 = ROWMAJOR_IDX;
+    }
+  }
+  else if(matrix_nospill == "B"){
+    if(loop_idc[0] == "k"){
+      matrix_spilltype1 = "A";
+      dblk1_size = opti_mn->a;
+      num_dblk1_mem = opti_mn->num_ablk_mem;
+      num_dblk1_need = opti_mn->blk_m;
+      num_reuse1 = opti_mn->blk_n;
+      num_iterate = opti_mn->blk_k;
+      idx_mode1 = ROW_IDX;
 
-	while(!ready.empty()){
-	   MacroNode mn(mn_template);
-	   
-	   int count = 0;
-	   while(count<mn_width && !ready.empty()){
-	      int tileidx_in_mn = mn.tile_map.size();
-	      mn.tile_map[ready.front()] = tileidx_in_mn;
-
-	      map<int,int>::iterator in_op1 = tiles[ready.front()].livein_ops.begin();
-	      for(map<int,int>::iterator in_op2=mn_template.tiles[tileidx_in_mn].livein_ops.begin(); in_op2!=mn_template.tiles[tileidx_in_mn].livein_ops.end(); in_op2++){
-	         if(mn.op_map.find(in_op2->first) == mn.op_map.end()){
-		    mn.op_map[in_op2->first] = in_op1->first;
-		 }
-		 in_op1++;
-	      }
-	      vector<int>::iterator out_op1 = tiles[ready.front()].liveout_ops.begin();
-	      for(vector<int>::iterator out_op2=mn_template.tiles[tileidx_in_mn].liveout_ops.begin(); out_op2!=mn_template.tiles[tileidx_in_mn].liveout_ops.end(); out_op2++){
-	         if(mn.op_map.find(*out_op2) == mn.op_map.end()){
-		    mn.op_map[*out_op2] = *out_op1;
-		 }
-		 out_op1++;
-	      }
-
-	      added.insert(ready.front());
-	      ready.pop();
-	      count++;
-	   }
-	 
-           while(count<mn_width*mn_depth && !wait.empty()){
-	      vector<list<int>::iterator> tile_toadd;
-	      for(list<int>::iterator t=wait.begin(); t!=wait.end(); t++){
-	         //tile: *t;
-		 bool can_add = true;
-	         for(vector<int>::iterator pred_t=tiles[*t].pred_tiles.begin(); pred_t!=tiles[*t].pred_tiles.end(); pred_t++){
-		    if((*pred_t >= tiles_idx[0]) && (added.find(*pred_t) == added.end())){
-		       can_add = false;
-		       break;
-		    }
-		 }	
-		 if(can_add){
-		    tile_toadd.push_back(t);
-		 }
-	      }
-	
-	      if(tile_toadd.empty()){
-	         break;
-	      }
-	      else{
-		 for(int i=0; i<tile_toadd.size(); i++){  
-		    int tileidx_in_mn = mn.tile_map.size(); 
-		    mn.tile_map[*tile_toadd[i]] = tileidx_in_mn;
-	            
-		    map<int,int>::iterator in_op1 = tiles[ready.front()].livein_ops.begin();
-	            for(map<int,int>::iterator in_op2=mn_template.tiles[tileidx_in_mn].livein_ops.begin(); in_op2!=mn_template.tiles[tileidx_in_mn].livein_ops.end(); in_op2++){
-	               if(mn.op_map.find(in_op2->first) == mn.op_map.end()){
-		          mn.op_map[in_op2->first] = in_op1->first;
-		       }
-		       in_op1++;
-		    }
-	            vector<int>::iterator out_op1 = tiles[ready.front()].liveout_ops.begin();
-	            for(vector<int>::iterator out_op2=mn_template.tiles[tileidx_in_mn].liveout_ops.begin(); out_op2!=mn_template.tiles[tileidx_in_mn].liveout_ops.end(); out_op2++){
-	               if(mn.op_map.find(*out_op2) == mn.op_map.end()){
-		          mn.op_map[*out_op2] = *out_op1;
-		       }
-		       out_op1++;
-	            }
-
-		    added.insert(*tile_toadd[i]);
-		    wait.erase(tile_toadd[i]);
-		    count++;
-		 }
-	      }
-
-	   }
-
-	   //update ready
-	   vector<list<int>::iterator> tile_ready;
-	   for(list<int>::iterator t=wait.begin(); t!=wait.end(); t++){
-	      bool is_ready = true;
-	      for(vector<int>::iterator pred_t=tiles[*t].pred_tiles.begin(); pred_t!=tiles[*t].pred_tiles.end(); pred_t++){
-	         if((*pred_t >= tiles_idx[0]) && (added.find(*pred_t) == added.end())){
-		    is_ready = false;
-		    break;
-		 }
-	      }
-	      if(is_ready){
-	         tile_ready.push_back(t);
-		 ready.push(*t);
-	      }
-	   }
-	   for(int i=0; i<tile_ready.size(); i++){
-	      wait.erase(tile_ready[i]);
-	   }
-
-	   mns.push_back(mn);
-	}
+      matrix_spilltype2 = "C";
+      dblk2_size = opti_mn->c;
+      num_dblk2_mem = opti_mn->num_cblk_mem;
+      num_dblk2_need = opti_mn->blk_m*opti_mn->blk_n;
+      num_reuse2 = opti_mn->blk_k;
+      idx_mode2 = COLMAJOR_IDX;
+    }
+    else{
+      matrix_spilltype1 = "C";
+      dblk1_size = opti_mn->c;
+      num_dblk1_mem = opti_mn->num_cblk_mem;
+      num_dblk1_need = opti_mn->blk_m;
+      num_reuse1 = opti_mn->blk_k;
+      num_iterate = opti_mn->blk_n;
+      idx_mode1 = ROW_IDX;
+      
+      matrix_spilltype2 = "A";
+      dblk2_size = opti_mn->a;
+      num_dblk2_mem = opti_mn->num_ablk_mem;
+      num_dblk2_need = opti_mn->blk_m*opti_mn->blk_k;
+      num_reuse2 = opti_mn->blk_n;
+      idx_mode2 = COLMAJOR_IDX;
+    }
+  }
+  else{
+    if(loop_idc[0] == "m"){
+      matrix_spilltype1 = "A";
+      dblk1_size = opti_mn->a;
+      num_dblk1_mem = opti_mn->num_ablk_mem;
+      num_dblk1_need = opti_mn->blk_k;
+      num_reuse1 = opti_mn->blk_n;
+      num_iterate = opti_mn->blk_m;
+      idx_mode1 = COL_IDX;
+      
+      matrix_spilltype2 = "B";
+      dblk2_size = opti_mn->b;
+      num_dblk2_mem = opti_mn->num_bblk_mem;
+      num_dblk2_need = opti_mn->blk_k*opti_mn->blk_n;
+      num_reuse2 = opti_mn->blk_m;
+      idx_mode2 = COLMAJOR_IDX;
+    }
+    else{
+      matrix_spilltype1 = "B";
+      dblk1_size = opti_mn->b;
+      num_dblk1_mem = opti_mn->num_bblk_mem;
+      num_dblk1_need = opti_mn->blk_k;
+      num_reuse1 = opti_mn->blk_m;
+      num_iterate = opti_mn->blk_n;
+      idx_mode1 = ROW_IDX;
+      
+      matrix_spilltype2 = "A";
+      dblk2_size = opti_mn->a;
+      num_dblk2_mem = opti_mn->num_ablk_mem;
+      num_dblk2_need = opti_mn->blk_k*opti_mn->blk_m;
+      num_reuse2 = opti_mn->blk_n;
+      idx_mode2 = ROWMAJOR_IDX;
+    }
+  }
 }
 */
 
 
-//-----------------------------------------------------------------------------------------
-
-// Load vector with size n
-Load_vec::Load_vec(vector<Operation> &ops, string &in_cp, int n, vector<int> &out_vec){
-	
-	cp = in_cp;
-	int pre_idx = ops.size()-1;
-
-	for(int i=1; i<=n; i++){
-	   PatternUnit pu;
-
-	   pre_idx++;
-	   Operation op;
-	   op.idx = pre_idx;
-	   op.fu = FunctionUnitLib::LOAD;
-	   ops.push_back(op);
-	   pu.ops.push_back(op.idx);
-	   out_vec.push_back(op.idx);
-
-	   pus.push_back(pu);
-	}
-
-	name = "load_vector";
-
-	cb = ComputeBlockLib::cbs["load"];
+void LoopOrder::setDblkSPAddrIdx(){
+  data_arrays[matrix_nospill]->setDblkSPAddrIdx(ZERO_IDX);
+  data_arrays[matrix_spilltype1]->setDblkSPAddrIdx(idx_mode1);
+  data_arrays[matrix_spilltype2]->setDblkSPAddrIdx(idx_mode2);
 }
 
-// Load matrix with size mxn
-Load_mtx::Load_mtx(vector<Operation> &ops, string &in_cp, int in_m, int in_n, vector<vector<int>> &out_mtx){
-	m = in_m;
-	n = in_n;
-
-	cp = in_cp;
-	int pre_idx = ops.size()-1;
-
-	for(int i=1; i<=m; i++){
-	   vector<int> row;
-	   for(int j=1; j<=n; j++){
-	      PatternUnit pu;
-
-	      pre_idx++;
-	      Operation op;
-	      op.idx = pre_idx;
-	      op.fu = FunctionUnitLib::LOAD;
-	      ops.push_back(op);
-	      pu.ops.push_back(op.idx);
-	      row.push_back(op.idx);
-
-	      pus.push_back(pu);
-	   }
-	   out_mtx.push_back(row);
-	}
-	name = "load_matrix";
-
-	cb = ComputeBlockLib::cbs["load"];
-	
+Parameters::Parameters(){
 }
 
-void Load_mtx::TileGen(vector<Tile> &tiles, vector<Operation> &ops){
-	int num_tile = (pus.size()%cb->width==0)?pus.size()/cb->width:pus.size()/cb->width+1;
-	
-	int tile_idx_start = tiles.size();
-	for(int i=0; i<num_tile; i++){
-	   Tile tile(cb);
-	   tile.latency = cb->latency;
-           tile.pattern_name = name;
-	   tile.cpsection_name = cp;
-	   tiles.push_back(tile);
-	   tiles_idx.push_back(tiles.size()-1);
-	}
-	
-	for(vector<PatternUnit>::iterator pu=pus.begin(); pu!=pus.end(); pu++){
-	   int idx = pu-pus.begin();
-	   int tile_idx = tile_idx_start + int(idx/cb->width);
-	   //add pu to the tiles[tile_idx];
-	   for(vector<int>::iterator op=pu->ops.begin(); op!=pu->ops.end(); op++){
-	      tiles[tile_idx].ops.push_back(*op);
-	      ops[*op].tile = tile_idx;
-	   }
-	}
+void Parameters::PrintInfo(){
+  cout << endl << "Extended input size: " << endl;
+  for(auto &i: axes){
+    cout << "extend input size in " << i.first << ": " << i.second.ex_input_size << endl;
+  }
 
-	cout << "pattern dimension (pu): 1 x " << pus.size() << endl;
-	cout << "pattern dimension (tile): 1 x " << num_tile << endl;
+  cout << endl << "First blocking level: " << endl;
+  cout << "Block dimension: " << endl;
+  for(auto &i: axes){
+    cout << "    blk_dim_" << i.first << ": " << i.second.blk_dim << endl;
+  }
+  cout << "Data block size: " << endl;
+  for(auto &i: dblks){
+    cout << "    block size of " << i.first << ": " << i.second.size << endl;
+  }
+
+  cout << endl << "Second blocking level: " << endl;
+  cout << "Sub-block dimension: " << endl;
+  for(auto &i: axes){
+    cout << "   subblk_dim_" << i.first << ": " << i.second.subblk_dim << endl;
+  }
+
+  cout << endl << "Compute block parameters: " << endl;
+  for(auto &i: cbs){
+    for(auto &j: i.second){
+      cout << "CB " << i.first+"_"+j.first << ": parallelization " << j.second.num_cb << " stage " << j.second.k_stage << endl;
+    }
+  }
+
+  cout << endl << "Loop order: " << endl;
+  cout << loop_order.loop_idc[0] << "->" << loop_order.loop_idc[1] << "->" << loop_order.loop_idc[2] << endl;
+
+  cout << endl << "Estimated number of spills: " << num_spill << endl;
+  cout << "Estimated #compute cycles per block: " << blk_compute_cycles << endl;
+  cout << "Estimated #compute cycles: " << total_compute_cycles << endl;
 }
 
-void Load_mtx::MacroNodeGen(vector<MacroNode*> &mns){
-	int num_tiles_mn = 36;
-	int num_tiles = tiles_idx.size();
-	
-	int num_mns = (num_tiles%num_tiles_mn==0)?num_tiles/num_tiles_mn:num_tiles/num_tiles_mn+1;
-	int mn_idx_start = mns.size();
+OptiMacroNode::OptiMacroNode(int in_m, int in_n, int in_k, Parameters& in_opti_para):opti_para(in_opti_para){
+  para.axes["i"].input_size = in_m;
+  para.axes["j"].input_size = in_n;
+  para.axes["l"].input_size = in_k;
+}
 
-	if(num_tiles/num_tiles_mn!=0){
-	   MacroNodeTemplate* mn1_temp = new MacroNodeTemplate("load mtx temp1");
-	   mn1_temp->MN_load(num_tiles_mn);
-	   mn_temps.push_back(mn1_temp);
-	   for(int i=0; i<int(num_tiles/num_tiles_mn); i++){
-	      MacroNode* mn = new MacroNode(mn1_temp, mns.size());
-	      mns.push_back(mn);
-	   }
-	}
-	if(num_tiles%num_tiles_mn!=0){
-	   MacroNodeTemplate* mn2_temp = new MacroNodeTemplate("load mtx temp2");
-	   mn2_temp->MN_load(num_tiles%num_tiles_mn);
-	   mn_temps.push_back(mn2_temp);
-	   if(num_tiles%num_tiles_mn!=0){
-	      MacroNode* mn = new MacroNode(mn2_temp, mns.size());
-	      mns.push_back(mn);
-	   }
-	}
 
-	//map real tiles into mns
-	if(row_major_mn){
-	   for(vector<int>::iterator t=tiles_idx.begin(); t!=tiles_idx.end(); t++){
-	      int mn_idx = (t-tiles_idx.begin())/num_tiles_mn;
-	      int tile_idx_mn = mns[mn_idx_start+mn_idx]->tile_map.size();
-	      mns[mn_idx_start+mn_idx]->tile_map[*t] = tile_idx_mn;
-	      //cout << "real tile idx " << *t << ": " << "template tile idx " << tile_idx_mn << endl;
-	   }
+int OptiMacroNode::MM_MinMem(int blk_dimi, int blk_dimj, int blk_diml){
+    return (blk_dimi*blk_diml+blk_dimj*blk_diml+blk_dimi*blk_dimj);
+}
+
+int OptiMacroNode::MM_MinBank(int m_subblk, int n_subblk, int k_subblk){
+  int port_per_bank = Memory::membanks[0].num_port;
+
+  int num_port_a = k_subblk*m_subblk;
+  int num_bank_a = (num_port_a%port_per_bank==0)?num_port_a/port_per_bank:num_port_a/port_per_bank+1;
+
+  int num_port_b = k_subblk*n_subblk;
+  int num_bank_b = (num_port_b%port_per_bank==0)?num_port_b/port_per_bank:num_port_b/port_per_bank+1;
+
+  int num_port_c = 2*m_subblk*n_subblk;
+  int num_bank_c = (num_port_c%port_per_bank==0)?num_port_c/port_per_bank:num_port_c/port_per_bank+1;
+
+  return (num_bank_a+num_bank_b+num_bank_c);
+}
+
+int OptiMacroNode::MM_MinPort(int sb_dimi, int sb_dimj, int sb_diml){
+  return (sb_diml*sb_dimi + sb_diml*sb_dimj + 2*sb_dimi*sb_dimj);
+}
+
+
+void OptiMacroNode::MM_genSubblkSet(){
+  num_port_used = 0;
+  for(int subblk_dimi=1; subblk_dimi<=para.axes["i"].input_size; subblk_dimi++){
+    if(MM_MinPort(subblk_dimi, 1, 1) > global_sp->total_port){
+      break;
+    }
+    for(int subblk_dimj=1; subblk_dimj<=para.axes["j"].input_size; subblk_dimj++){
+      if(MM_MinPort(subblk_dimi, subblk_dimj, 1) > global_sp->total_port){
+        break;
+      }
+      for(int subblk_diml=1; subblk_diml<=para.axes["l"].input_size; subblk_diml++){
+	int min_bank = MM_MinBank(subblk_dimi, subblk_dimj, subblk_diml);
+	if(min_bank < Memory::num_bank){
+	  int min_port = MM_MinPort(subblk_dimi, subblk_dimj, subblk_diml);
+	  if(min_port >= num_port_used){
+	    array<int,3> subblk_dim = {subblk_dimi, subblk_dimj, subblk_diml};
+	    if(min_port > num_port_used){
+	      sb_dim_set.clear();
+	      num_port_used = min_port;
+	    }
+	    sb_dim_set.push_back(subblk_dim);
+	  }
 	}
 	else{
-	   for(vector<int>::iterator t=tiles_idx.begin(); t!=tiles_idx.end(); t++){
-	      int tile_idx = t-tiles_idx.begin();
-	      int row_idx = tile_idx/n;
-	      int col_idx = tile_idx-n*row_idx;
-	      int mn_idx = (col_idx*m+row_idx)/num_tiles_mn;
-	      int tile_idx_mn = mns[mn_idx_start+mn_idx]->tile_map.size();
-	      mns[mn_idx_start+mn_idx]->tile_map[*t] = tile_idx_mn;
-	      //cout << "real tile idx " << *t << ": " << "template tile idx " << tile_idx_mn << endl;
-	   }
+	  break;
 	}
+      }
+    }
+  }
+}
 
-	cout << "pattern dimension (macronode): 1 x " << num_mns << endl;
+void OptiMacroNode::MM_getPerf(unsigned long long& perf, unsigned long long& blk_perf){
+
+  int num_subblk_level = blk_dimi_sb*blk_dimj_sb;
+  int latency_cb = (subblk_diml-1)+3+1+2;
+
+  blk_perf = max(num_subblk_level, latency_cb)*blk_diml_sb+min(num_subblk_level,latency_cb)-1;
+  perf = blk_perf*blk_m*blk_n*blk_k;
 }
 
 
-// Store final results
-Store_vec::Store_vec(vector<Operation> &ops, string &in_cp, const vector<int> &in_vec){
-	cp = in_cp;
-	int pre_idx = ops.size()-1;
-
-	for(size_t i=0; i<in_vec.size(); i++){
-	   PatternUnit pu;
-
-	   pre_idx++;
-	   Operation op;
-	   op.idx = pre_idx;
-	   op.in.push_back(in_vec[i]);
-	   op.fu = FunctionUnitLib::STORE;
-	   ops.push_back(op);
-	   pu.ops.push_back(op.idx);
-
-	   pus.push_back(pu);
-	}
-
-	name = "store_vector";
-
-	cb = ComputeBlockLib::cbs["store"];	
+//reused blocks on line for full matrix
+unsigned long long spill_normal(blk_info& spill_dblk, int num_exist, int num_reuse, int iterate){
+  unsigned long long spill;
+  spill = max(num_exist-spill_dblk.num_blk_mem, 0);
+  spill = spill*spill_dblk.size;
+  spill = spill*(num_reuse-1);
+  spill = spill*iterate;
+  return spill;
 }
 
-// Store final results - matrix
-Store_mtx::Store_mtx(vector<Operation> &ops, string &in_cp, const vector<vector<int>> &in_mtx){
-	cp = in_cp;
-	int pre_idx = ops.size()-1;
+unsigned long long OptiMacroNode::MM_spill(LoopOrder& lo, unsigned long long& spill1, unsigned long long& spill2){
+  int blk_m = para.axes["i"].num_blk;
+  int blk_n = para.axes["j"].num_blk;
+  int blk_k = para.axes["l"].num_blk;
 
-	for(size_t i=0; i<in_mtx.size(); i++){
-	   for(size_t j=0; j<in_mtx[0].size(); j++){
-	      PatternUnit pu;
+  string matrix_nospill = (lo.loop_idc[2] == "i")?"B":(lo.loop_idc[2] == "j")?"A":"C";
+  if(matrix_nospill == "A"){
+    if(lo.loop_idc[0] == "i"){
+      lo.matrix_spilltype1 = "C";
+      spill1 = spill_normal(para.dblks["C"],blk_n,blk_k,blk_m);
+      lo.idx_mode1 = COL_IDX;
 
-	      pre_idx++;
-	      Operation op;
-	      op.idx = pre_idx;
-	      op.in.push_back(in_mtx[i][j]);
-	      op.fu = FunctionUnitLib::STORE;
-	      ops.push_back(op);
-	      pu.ops.push_back(op.idx);
+      lo.matrix_spilltype2 = "B";
+      spill2 = spill_normal(para.dblks["B"],blk_k*blk_n,blk_m,1);
+      lo.idx_mode2 = ROWMAJOR_IDX;
+    }
+    else{
+      lo.matrix_spilltype1 = "B";
+      spill1 = spill_normal(para.dblks["B"],blk_n,blk_m,blk_k);
+      lo.idx_mode1 = COL_IDX;
+      
+      lo.matrix_spilltype2 = "C";
+      spill2 = spill_normal(para.dblks["C"],blk_m*blk_n,blk_k,1);
+      lo.idx_mode2 = ROWMAJOR_IDX;
+    }
+  }
+  else if(matrix_nospill == "B"){
+    if(lo.loop_idc[0] == "l"){
+      lo.matrix_spilltype1 = "A";
+      spill1 = spill_normal(para.dblks["A"],blk_m,blk_n,blk_k);
+      lo.idx_mode1 = ROW_IDX;
 
-	      pus.push_back(pu);
-	   }
-	}
-	name = "store_matrix";
-
-	cb = ComputeBlockLib::cbs["store"];
+      lo.matrix_spilltype2 = "C";
+      spill2 = spill_normal(para.dblks["C"],blk_m*blk_n,blk_k,1);
+      lo.idx_mode2 = COLMAJOR_IDX;
+    }
+    else{
+      lo.matrix_spilltype1 = "C";
+      spill1 = spill_normal(para.dblks["C"],blk_m,blk_k,blk_n);
+      lo.idx_mode1 = ROW_IDX;
+      
+      lo.matrix_spilltype2 = "A";
+      spill2 = spill_normal(para.dblks["A"],blk_m*blk_k,blk_n,1);
+      lo.idx_mode2 = COLMAJOR_IDX;
+    }
+  }
+  else{
+    if(lo.loop_idc[0] == "i"){
+      lo.matrix_spilltype1 = "A";
+      spill1 = spill_normal(para.dblks["A"],blk_k,blk_n,blk_m);
+      lo.idx_mode1 = COL_IDX;
+      
+      lo.matrix_spilltype2 = "B";
+      spill2 = spill_normal(para.dblks["B"],blk_k*blk_n,blk_m,1);
+      lo.idx_mode2 = COLMAJOR_IDX;
+    }
+    else{
+      lo.matrix_spilltype1 = "B";
+      spill1 = spill_normal(para.dblks["B"],blk_k,blk_m,blk_n);
+      lo.idx_mode1 = ROW_IDX;
+      
+      lo.matrix_spilltype2 = "A";
+      spill2 = spill_normal(para.dblks["A"],blk_k*blk_m,blk_n,1);
+      lo.idx_mode2 = ROWMAJOR_IDX;
+    }
+  }
+    unsigned long long spill = spill1+spill2;
+    return spill;
 }
 
-void Store_mtx::TileGen(vector<Tile> &tiles, vector<Operation> &ops){
-	int num_tile = (pus.size()%cb->width==0)?pus.size()/cb->width:pus.size()/cb->width+1;
+void OptiMacroNode::MM_optiPara(){
+  num_spill = ULLONG_MAX;
+  perf = ULLONG_MAX;
+  
+  MM_genSubblkSet();
 
-	int tile_idx_start = tiles.size();
-	for(int i=0; i<num_tile; i++){
-	   Tile tile(cb);
-	   tile.latency = cb->latency;
-           tile.pattern_name = name;
-	   tile.cpsection_name = cp;
-	   tiles.push_back(tile);
-	   tiles_idx.push_back(tiles.size()-1);
-	}
+  for(auto &i: sb_dim_set){
+
+	  para.axes["i"].subblk_dim = i[0];
+	  para.axes["j"].subblk_dim = i[1];
+	  para.axes["l"].subblk_dim = i[2];
+	  for(auto &ax: para.axes){
+	    ax.second.num_subblk = (ax.second.input_size%ax.second.subblk_dim==0)?ax.second.input_size/ax.second.subblk_dim:ax.second.input_size/ax.second.subblk_dim+1;
+	  }
+
+	  int port_per_bank = Memory::membanks[0].num_port;
+	  para.dblks["A"].num_port = para.axes["l"].subblk_dim*para.axes["i"].subblk_dim;
+	  para.dblks["B"].num_port = para.axes["l"].subblk_dim*para.axes["j"].subblk_dim;
+	  para.dblks["C"].num_port = 2*para.axes["i"].subblk_dim*para.axes["j"].subblk_dim;
+	  for(auto &d: para.dblks){
+	    d.second.num_bank = (d.second.num_port%port_per_bank==0)?d.second.num_port/port_per_bank:d.second.num_port/port_per_bank+1;
+	  }
+
+	  for(int blk_dimi_sb=1; blk_dimi_sb<=para.axes["i"].num_subblk; blk_dimi_sb++){
+	    int blk_dimi = blk_dimi_sb*para.axes["i"].subblk_dim;
+	    if(MM_MinMem(blk_dimi, 1, 1) > global_sp->total_size){
+	      break;
+	    }
+	    for(int blk_dimj_sb=1; blk_dimj_sb<=para.axes["j"].num_subblk; blk_dimj_sb++){
+	      int blk_dimj = blk_dimj_sb*para.axes["j"].subblk_dim;
+	      if(MM_MinMem(blk_dimi, blk_dimj, 1) > global_sp->total_size){
+	        break;
+	      }
+	      for(int blk_diml_sb=1; blk_diml_sb<=para.axes["l"].num_subblk; blk_diml_sb++){
+		int blk_diml = blk_diml_sb*para.axes["l"].subblk_dim;
+	        if(MM_MinMem(blk_dimi, blk_dimj, blk_diml) > global_sp->total_size){
+	          break;
+	        }
+
+		para.axes["i"].blk_dim = blk_dimi;
+		para.axes["j"].blk_dim = blk_dimj;
+		para.axes["l"].blk_dim = blk_diml;
+
+		for(auto &ax: para.axes){
+		  ax.second.num_blk = (ax.second.input_size%ax.second.blk_dim==0)?ax.second.input_size/ax.second.blk_dim: ax.second.input_size/ax.second.blk_dim+1;
+		  ax.second.ex_input_size = ax.second.num_blk*ax.second.blk_dim;
+		}
+
+		para.dblks["A"].size = para.axes["i"].blk_dim*para.axes["l"].blk_dim;
+		para.dblks["B"].size = para.axes["j"].blk_dim*para.axes["l"].blk_dim;
+		para.dblks["C"].size = para.axes["i"].blk_dim*para.axes["j"].blk_dim;
+                
+		int bank_size = Memory::membanks[0].size;
+		bool can_fit = true;
+		for(auto &d: para.dblks){
+		  d.second.interval = (d.second.size%d.second.num_bank==0)? d.second.size/d.second.num_bank: d.second.size/d.second.num_bank+1;
+		  d.second.num_blk_mem = bank_size/d.second.interval;
+		  can_fit = can_fit && (d.second.num_blk_mem >= 1);
+		}
+
+		if(can_fit){
+	 	
+		  unsigned long long cur_spill;
+		  unsigned long long cur_spill1;
+		  unsigned long long cur_spill2;
 	
-	for(vector<PatternUnit>::iterator pu=pus.begin(); pu!=pus.end(); pu++){
-	   int idx = pu-pus.begin();
-	   int tile_idx = tile_idx_start + int(idx/cb->width);
-	   //add pu to the tiles[tile_idx];
-	   for(vector<int>::iterator op=pu->ops.begin(); op!=pu->ops.end(); op++){
-	      tiles[tile_idx].ops.push_back(*op);
-	      ops[*op].tile = tile_idx;
-	   }
-	}
+		  //find the smallest num_dblk
+		  if((para.dblks["A"].num_blk_mem <= para.dblks["B"].num_blk_mem) && (para.dblks["A"].num_blk_mem <= para.dblks["C"].num_blk_mem)){
+		      LoopOrder order1("i","l","j");
+		      LoopOrder order2("l","i","j");
 
-	cout << "pattern dimension (pu): 1 x " << pus.size() << endl;
-	cout << "pattern dimension (tile): 1 x " << num_tile << endl;
+		      unsigned long long spill11;
+		      unsigned long long spill12;
+		      unsigned long long spill1 = MM_spill(order1, spill11, spill12);
+
+		      unsigned long long spill21;
+		      unsigned long long spill22;
+		      unsigned long long spill2 = MM_spill(order2, spill21, spill22);
+
+		      if(spill1 <= spill2){
+			cur_spill = spill1;
+			para.loop_order = order1;
+			cur_spill1 = spill11;
+			cur_spill2 = spill12;
+		      }
+		      else{
+			cur_spill = spill2;
+			para.loop_order = order2;
+			cur_spill1 = spill21;
+			cur_spill2 = spill22;
+		      }
+		  }
+		  else if((para.dblks["B"].num_blk_mem <= para.dblks["A"].num_blk_mem) && (para.dblks["B"].num_blk_mem <= para.dblks["C"].num_blk_mem)){
+		      LoopOrder order1("j","l","i");
+		      LoopOrder order2("l","j","i");
+
+		      unsigned long long spill11;
+		      unsigned long long spill12;
+		      unsigned long long spill1 = MM_spill(order1, spill11, spill12);
+		      
+		      unsigned long long spill21;
+		      unsigned long long spill22;
+		      unsigned long long spill2 = MM_spill(order2, spill21, spill22);
+
+		      if(spill1 <= spill2){
+			cur_spill = spill1;
+			para.loop_order = order1;
+			cur_spill1 = spill11;
+			cur_spill2 = spill12;
+		      }
+		      else{
+			cur_spill = spill2;
+			para.loop_order = order2;
+			cur_spill1 = spill21;
+			cur_spill2 = spill22;
+		      }
+		  }
+		  else{
+		      LoopOrder order1("i","j","l");
+		      LoopOrder order2("j","i","l");
+
+		      unsigned long long spill11;
+		      unsigned long long spill12;
+		      unsigned long long spill1 = MM_spill(order1, spill11, spill12);
+		      
+		      unsigned long long spill21;
+		      unsigned long long spill22;
+		      unsigned long long spill2 = MM_spill(order2, spill21, spill22);
+
+		      if(spill1 <= spill2){
+			cur_spill = spill1;
+			para.loop_order = order1;
+			cur_spill1 = spill11;
+			cur_spill2 = spill12;
+		      }
+		      else{
+			cur_spill = spill2;
+			para.loop_order = order2;
+			cur_spill1 = spill21;
+			cur_spill2 = spill22;
+		      }
+		  }
+			
+		  if(cur_spill < num_spill){
+		    opti_para = para;
+		    opti_para.num_spill = cur_spill;
+
+		    num_spill = cur_spill;
+		  }
+
+		}
+	      }
+	    }
+	  }
+  }
+
+  opti_para.cbs["mm"]["acc_mul"].k_stage = opti_para.axes["l"].subblk_dim;
+  opti_para.cbs["mm"]["acc_mul"].num_cb = opti_para.axes["i"].subblk_dim*opti_para.axes["j"].subblk_dim;
 }
 
-void Store_mtx::MacroNodeGen(vector<MacroNode*> &mns){
-	int num_tiles_mn = 36;
-	int num_tiles = tiles_idx.size();
+
+
+
+void OptiMacroNode::LU_genSubblkSet(){
+  num_port_used = 0;
+  int subblk_diml = 1;
+  for(int subblk_dimi=1; subblk_dimi<=para.axes["i"].input_size; subblk_dimi++){
+    if(MM_MinPort(subblk_dimi, 1, 1) > global_sp->total_port){
+      break;
+    }
+    for(int subblk_dimj=1; subblk_dimj<=para.axes["j"].input_size; subblk_dimj++){
+      if(MM_MinPort(subblk_dimi, subblk_dimj, 1) > global_sp->total_port){
+        break;
+      }
+      int min_bank = MM_MinBank(subblk_dimi, subblk_dimj, subblk_diml);
+      if(min_bank < Memory::num_bank){
+	int min_port = MM_MinPort(subblk_dimi, subblk_dimj, subblk_diml);
+	if(min_port >= num_port_used){
+	  array<int,3> subblk_dim = {subblk_dimi, subblk_dimj, subblk_diml};
+	  if(min_port > num_port_used){
+	    sb_dim_set.clear();
+	    num_port_used = min_port;
+	  }
+	  sb_dim_set.push_back(subblk_dim);
+	}
+      }
+      else{
+	break;
+      }
+    }
+  }
+}
+
+unsigned long long OptiMacroNode::LU_spill(LoopOrder& lo, unsigned long long& spill1, unsigned long long& spill2){
+  int num_blk = para.axes["i"].num_blk;
+  if(lo.loop_idc[2] == "l"){
+    if(lo.loop_idc[0] == "i"){
+      //continuous reuse: A
+      //line reuse: L
+      //plane reuse: U
+      spill1 = 0;
+      blk_info& d = para.dblks["L"];
+      for(int i=0; i<num_blk; i++){
+        unsigned long long spill_t = max(i-d.num_blk_mem,0);
+	spill_t = spill_t*d.size;
+	spill_t = spill_t*(num_blk-1);
+	spill1 += spill_t;
+      }
+
+      spill2 = 0;
+      d = para.dblks["U"];
+      int num_exist = 0;
+      for(int i=0; i<num_blk; i++){
+	num_exist += num_blk-i;
+        unsigned long long spill_t = max(num_exist-d.num_blk_mem,0);
+	spill_t = spill_t*d.size;
+	spill2 += spill_t;
+      }
+    }
+    else{
+      //continuous reuse: A
+      //line reuse: U
+      //plane reuse: L
+      spill1 = 0;
+      blk_info& d = para.dblks["U"];
+      for(int i=0; i<num_blk; i++){
+        unsigned long long spill_t = max(i-d.num_blk_mem,0);
+	spill_t = spill_t*d.size;
+	spill_t = spill_t*(num_blk-1);
+	spill1 += spill_t;
+      }
+
+      spill2 = 0;
+      d = para.dblks["L"];
+      int num_exist = 0;
+      for(int i=0; i<num_blk; i++){
+	num_exist += num_blk-i;
+        unsigned long long spill_t = max(num_exist-d.num_blk_mem,0);
+	spill_t = spill_t*d.size;
+	spill2 += spill_t;
+      }
+    }
+  }
+  else if(lo.loop_idc[2] == "i"){
+    if(lo.loop_idc[0] == "j"){
+      //continously reuse: U
+      //line reuse: A
+      //plane reuse: L
+      spill1 = 0;
+      blk_info& d = para.dblks["A"];
+      for(int i=0; i<num_blk; i++){
+	for(int j=num_blk; j>=num_blk-i; j--){
+	  unsigned long long spill_t = max(j-d.num_blk_mem,0);
+	  spill_t = spill_t * d.size;
+	  spill1 += spill_t;
+	}
+      }
+
+      spill2 = 0;
+      d = para.dblks["L"];
+      int num_exist = 0;
+      for(int i=0; i<num_blk; i++){
+	num_exist += num_blk-i;
+        unsigned long long spill_t = max(num_exist-d.num_blk_mem,0);
+	spill_t = spill_t*d.size;
+	spill2 += spill_t;
+      }
+    }
+    else{
+      //continuously reuse: U
+      //line reuse: L
+      //plane reuse: A
+      spill1 = 0;
+      blk_info& d = para.dblks["L"];
+      for(int i=0; i<num_blk; i++){
+        unsigned long long spill_t = max(num_blk-i-d.num_blk_mem,0);
+	spill_t = spill_t*d.size;
+	spill_t = spill_t*(num_blk-i-1);
+	spill1 += spill_t;
+      }
+
+      spill2 = 0;
+      d = para.dblks["A"];
+      for(int i=0; i<num_blk; i++){
+        unsigned long long spill_t = max((num_blk-i)*(num_blk-i)-d.num_blk_mem,0);
+	spill_t = spill_t*d.size;
+	spill2 += spill_t;
+      }
+    }
+  }
+  else{
+    if(lo.loop_idc[0] == "i"){
+      //continuously reuse: L
+      //line reuse: A
+      //plane reuse: U
+      spill1 = 0;
+      blk_info& d = para.dblks["A"];
+      for(int i=0; i<num_blk; i++){
+	for(int j=num_blk; j>=num_blk-i; j--){
+	  unsigned long long spill_t = max(j-d.num_blk_mem,0);
+	  spill_t = spill_t * d.size;
+	  spill1 += spill_t;
+	}
+      }
+
+      spill2 = 0;
+      d = para.dblks["U"];
+      int num_exist = 0;
+      for(int i=0; i<num_blk; i++){
+	num_exist += num_blk-i;
+        unsigned long long spill_t = max(num_exist-d.num_blk_mem,0);
+	spill_t = spill_t*d.size;
+	spill2 += spill_t;
+      }
+    }
+    else{
+      //continuously reuse: L
+      //line reuse: U
+      //plane reuse: A
+      spill1 = 0;
+      blk_info& d = para.dblks["U"];
+      for(int i=0; i<num_blk; i++){
+        unsigned long long spill_t = max(num_blk-i-1, 0);
+	spill_t = spill_t*d.size;
+	spill_t = spill_t*(num_blk-i-1);
+	spill1 += spill_t;
+      }
+      spill2 = 0;
+      d = para.dblks["A"];
+      for(int i=0; i<num_blk; i++){
+        unsigned long long spill_t = max((num_blk-i)*(num_blk-i)-d.num_blk_mem,0);
+	spill_t = spill_t*d.size;
+	spill2 += spill_t;
+      }
+    }
+  }
+  unsigned long long spill = spill1 + spill2;
+  return spill;
+}
+
+void OptiMacroNode::LU_optiPara(){
+  num_spill = ULLONG_MAX;
+  perf = ULLONG_MAX;
+  
+  LU_genSubblkSet();
+
+  for(auto &i: sb_dim_set){
+
+	  para.axes["i"].subblk_dim = i[0];
+	  para.axes["j"].subblk_dim = i[1];
+	  para.axes["l"].subblk_dim = i[2];
+	  for(auto &ax: para.axes){
+	    ax.second.num_subblk = (ax.second.input_size%ax.second.subblk_dim==0)?ax.second.input_size/ax.second.subblk_dim:ax.second.input_size/ax.second.subblk_dim+1;
+	  }
+
+	  int port_per_bank = Memory::membanks[0].num_port;
+	  para.dblks["L"].num_port = para.axes["l"].subblk_dim*para.axes["i"].subblk_dim;
+	  para.dblks["U"].num_port = para.axes["l"].subblk_dim*para.axes["j"].subblk_dim;
+	  para.dblks["A"].num_port = 2*para.axes["i"].subblk_dim*para.axes["j"].subblk_dim;
+	  for(auto &d: para.dblks){
+	    d.second.num_bank = (d.second.num_port%port_per_bank==0)?d.second.num_port/port_per_bank:d.second.num_port/port_per_bank+1;
+	  }
+
+	  int blk_dim;
+	  for(blk_dim=1; blk_dim<=para.axes["i"].input_size; blk_dim++){
+	    if(MM_MinMem(blk_dim, blk_dim, blk_dim) > global_sp->total_size){
+	      break;
+	    }
+
+		para.axes["i"].blk_dim = blk_dim;
+		para.axes["j"].blk_dim = blk_dim;
+		para.axes["l"].blk_dim = blk_dim;
+
+		for(auto &ax: para.axes){
+		  ax.second.num_blk = (ax.second.input_size%ax.second.blk_dim==0)?ax.second.input_size/ax.second.blk_dim: ax.second.input_size/ax.second.blk_dim+1;
+		  ax.second.ex_input_size = ax.second.num_blk*ax.second.blk_dim;
+		}
+
+		para.dblks["L"].size = para.axes["i"].blk_dim*para.axes["i"].blk_dim;
+		para.dblks["U"].size = para.axes["i"].blk_dim*para.axes["i"].blk_dim;
+		para.dblks["A"].size = para.axes["i"].blk_dim*para.axes["i"].blk_dim;
+                
+		int bank_size = Memory::membanks[0].size;
+		bool can_fit = true;
+		for(auto &d: para.dblks){
+		  d.second.interval = (d.second.size%d.second.num_bank==0)? d.second.size/d.second.num_bank: d.second.size/d.second.num_bank+1;
+		  d.second.num_blk_mem = bank_size/d.second.interval;
+		  can_fit = can_fit && (d.second.num_blk_mem >= 1);
+		}
+
+		if(can_fit){
+	 	
+		  unsigned long long cur_spill;
+		  unsigned long long cur_spill1;
+		  unsigned long long cur_spill2;
 	
-	int num_mns = (num_tiles%num_tiles_mn==0)?num_tiles/num_tiles_mn:num_tiles/num_tiles_mn+1;
-	int mn_idx_start = mns.size();
+		  //find the smallest num_dblk
+		  if((para.dblks["L"].num_blk_mem <= para.dblks["U"].num_blk_mem) && (para.dblks["L"].num_blk_mem <= para.dblks["A"].num_blk_mem)){
+		      LoopOrder order1("i","l","j");
+		      LoopOrder order2("l","i","j");
+
+		      unsigned long long spill11;
+		      unsigned long long spill12;
+		      unsigned long long spill1 = LU_spill(order1, spill11, spill12);
+
+		      unsigned long long spill21;
+		      unsigned long long spill22;
+		      unsigned long long spill2 = LU_spill(order2, spill21, spill22);
+
+		      if(spill1 <= spill2){
+			cur_spill = spill1;
+			para.loop_order = order1;
+			cur_spill1 = spill11;
+			cur_spill2 = spill12;
+		      }
+		      else{
+			cur_spill = spill2;
+			para.loop_order = order2;
+			cur_spill1 = spill21;
+			cur_spill2 = spill22;
+		      }
+		  }
+		  else if((para.dblks["U"].num_blk_mem <= para.dblks["L"].num_blk_mem) && (para.dblks["U"].num_blk_mem <= para.dblks["A"].num_blk_mem)){
+		      LoopOrder order1("j","l","i");
+		      LoopOrder order2("l","j","i");
+
+		      unsigned long long spill11;
+		      unsigned long long spill12;
+		      unsigned long long spill1 = LU_spill(order1, spill11, spill12);
+		      
+		      unsigned long long spill21;
+		      unsigned long long spill22;
+		      unsigned long long spill2 = LU_spill(order2, spill21, spill22);
+
+		      if(spill1 <= spill2){
+			cur_spill = spill1;
+			para.loop_order = order1;
+			cur_spill1 = spill11;
+			cur_spill2 = spill12;
+		      }
+		      else{
+			cur_spill = spill2;
+			para.loop_order = order2;
+			cur_spill1 = spill21;
+			cur_spill2 = spill22;
+		      }
+		  }
+		  else{
+		      LoopOrder order1("i","j","l");
+		      LoopOrder order2("j","i","l");
+
+		      unsigned long long spill11;
+		      unsigned long long spill12;
+		      unsigned long long spill1 = LU_spill(order1, spill11, spill12);
+		      
+		      unsigned long long spill21;
+		      unsigned long long spill22;
+		      unsigned long long spill2 = LU_spill(order2, spill21, spill22);
+
+		      if(spill1 <= spill2){
+			cur_spill = spill1;
+			para.loop_order = order1;
+			cur_spill1 = spill11;
+			cur_spill2 = spill12;
+		      }
+		      else{
+			cur_spill = spill2;
+			para.loop_order = order2;
+			cur_spill1 = spill21;
+			cur_spill2 = spill22;
+		      }
+		  }
+			
+		  if(cur_spill < num_spill){
+		    opti_para = para;
+		    opti_para.num_spill = cur_spill;
+
+		    num_spill = cur_spill;
+		  }
+
+		}
+	  }
+  }
+  //*****************mn temp level parameters
+  opti_para.cbs["mm"]["sub_mul"].num_cb = opti_para.axes["i"].subblk_dim*opti_para.axes["j"].subblk_dim;
+  opti_para.cbs["mm"]["sub_mul"].k_stage = 1;
+
+  opti_para.cbs["lu"]["sub_mul"].num_cb = opti_para.axes["i"].subblk_dim*opti_para.axes["j"].subblk_dim;
+  opti_para.cbs["lu"]["sub_mul"].k_stage = 1;
+  
+  opti_para.cbs["lu"]["copy"].num_cb = opti_para.axes["j"].subblk_dim;
+  opti_para.cbs["lu"]["div"].num_cb = opti_para.axes["i"].subblk_dim;
+  
+  opti_para.cbs["lucpl"]["sub_mul"].num_cb = opti_para.axes["i"].subblk_dim*opti_para.axes["j"].subblk_dim;
+  opti_para.cbs["lucpl"]["sub_mul"].k_stage = 1;
+  opti_para.cbs["lucpl"]["div"].num_cb = opti_para.axes["i"].subblk_dim;
+
+  opti_para.cbs["trs"]["div"].num_cb = opti_para.axes["j"].subblk_dim;
+  opti_para.cbs["trs"]["copy"].num_cb = opti_para.axes["j"].subblk_dim;
+  opti_para.cbs["trs"]["sub_mul"].num_cb = opti_para.axes["i"].subblk_dim*opti_para.axes["j"].subblk_dim;
+  opti_para.cbs["trs"]["sub_mul"].k_stage = 1;
+
+}
+
+void OptiMacroNode::optiPara(){
+  if(app == "MM"){
+    MM_optiPara();
+  }
+  else if(app == "LU"){
+    LU_optiPara();
+  }
+}
+
+void OptiMacroNode::setPara(){
+  
+  //*****************App level parameters
+  opti_para.axes["i"].subblk_dim = 3;
+  opti_para.axes["j"].subblk_dim = 4;
+  
+  //opti_para.subblk_dim["mm_i"] = 6;
+  //opti_para.subblk_dim["mm_j"] = 2;
+  //opti_para.subblk_dim["mm_l"] = 1;
+  
+  opti_para.axes["i"].blk_dim = 8;
+  opti_para.axes["j"].blk_dim = 8;
+
+  //opti_para.blk_dim["mm_i"] = 48;
+  //opti_para.blk_dim["mm_j"] = 6;
+  //opti_para.blk_dim["mm_l"] = 2;
+
+  opti_para.axes["i"].ex_input_size = opti_para.axes["i"].blk_dim;
+  opti_para.axes["j"].ex_input_size = opti_para.axes["j"].blk_dim;
+
+  //opti_para.ex_input_size["mm_m"] = opti_para.blk_dim["mm_i"];
+  //opti_para.ex_input_size["mm_n"] = opti_para.blk_dim["mm_j"];
+  //opti_para.ex_input_size["mm_k"] = opti_para.blk_dim["mm_l"];
+
+  opti_para.dblks["Q"].num_port = 3;
+  opti_para.dblks["R"].num_port = 4;
+  opti_para.dblks["A"].num_port = 24;
+
+  //opti_para.num_port["MM_A"] = 6;
+  //opti_para.num_port["MM_B"] = 2;
+  //opti_para.num_port["MM_C"] = 24;
+
+  opti_para.num_bank["L"] = 2;
+  opti_para.num_bank["U"] = 2;
+  opti_para.num_bank["A"] = 12;
+
+  //opti_para.num_bank["MM_A"] = 3;
+  //opti_para.num_bank["MM_B"] = 1;
+  //opti_para.num_bank["MM_C"] = 12;
+
+  opti_para.num_blk["i"] = 1;
+  opti_para.num_blk["j"] = 1;
+
+  //opti_para.num_blk["mm_i"] = 1;
+  //opti_para.num_blk["mm_j"] = 1;
+  //opti_para.num_blk["mm_l"] = 1;
+  //***************************************
+
+  //*****************mn temp level parameters
+  opti_para.cbs["lu"]["sub_mul"].num_cb = 12;
+  opti_para.cbs["lu"]["sub_mul"].k_stage = 1;
+  
+  opti_para.cbs["lu"]["copy"].num_cb = 4;
+  opti_para.cbs["lu"]["div"].num_cb = 3;
+  
+  opti_para.cbs["lucpl"]["sub_mul"].num_cb = 12;
+  opti_para.cbs["lucpl"]["sub_mul"].k_stage = 1;
+  opti_para.cbs["lucpl"]["div"].num_cb = 3;
+
+  opti_para.cbs["trs"]["div"].num_cb = 4;
+  opti_para.cbs["trs"]["copy"].num_cb = 4;
+  opti_para.cbs["trs"]["sub_mul"].num_cb = 12;
+  opti_para.cbs["trs"]["sub_mul"].k_stage = 1;
+
+  opti_para.cbs["mm"]["acc_mul"].num_cb = 12;
+  opti_para.cbs["mm"]["acc_mul"].k_stage = 1;
+  
+  //opti_para.loop_order = LoopOrder("m","n","k");
+
+  //opti_para.num_spill = 0;
+  //opti_para.blk_compute_cycles = 0;
+  //opti_para.total_compute_cycles = 0;
+  //opti_para.num_spill = cur_spill;
+  //opti_para.total_compute_cycles = cur_perf;
+}
+
+
+/*
+bool OptiMacroNode::ConstraintBW_buffer(int k_subblk, int m_subblk, int n_subblk){
+  int port_per_bank = Memory::membanks[0].num_port;
+
+  int num_port_a = k_subblk*m_subblk;
+  num_bank_a = (num_port_a%port_per_bank==0)?num_port_a/port_per_bank:num_port_a/port_per_bank+1;
+
+  int num_port_b = k_subblk*n_subblk;
+  num_bank_b = (num_port_b%port_per_bank==0)?num_port_b/port_per_bank:num_port_b/port_per_bank+1;
+
+  int num_port_c = 2*m_subblk*n_subblk;
+  num_bank_c = (num_port_c%port_per_bank==0)?num_port_c/port_per_bank:num_port_c/port_per_bank+1;
+
+  if(2*num_bank_a+2*num_bank_b+2*num_bank_c <= Memory::num_bank){
+    return true;
+  }
+  else{
+    return false;
+  }
+}
+
+
+unsigned long long OptiMacroNode::spill_a_buffer(){
+  unsigned long long spill;
+  int num_a_region = 2*Memory::membanks[0].size/a_region;
+
+  if(num_a_region >= blk_k){
+    spill = 0;
+  }
+  else{
+    spill = a*(blk_k+1-num_a_region)*(blk_n-1)*blk_m;
+  }
+  return spill;
+}
+
+unsigned long long OptiMacroNode::spill_b_buffer(){
+  unsigned long long spill;
+  int num_b_region = 2*Memory::membanks[0].size/b_region;
+
+  if(num_b_region >= blk_n*blk_k){
+    spill = 0;
+  }
+  else{
+    spill = b*(blk_n*blk_k+1-num_b_region)*(blk_m-1);
+  }
+  return spill;
+}
+
+void OptiMacroNode::optiPara_buffer(){
+  //cout << "Memory banks: " << Memory::num_bank << endl;
+  //cout << "bank 0 size: " << Memory::membanks[0].size << endl;
+
+  num_spill = LLONG_MAX;
+  perf = LLONG_MAX;
+  for(subblk_dimi=1; subblk_dimi<=m; subblk_dimi++){
+    for(subblk_dimj=1; subblk_dimj<=n; subblk_dimj++){
+      for(subblk_diml=1; subblk_diml<=k; subblk_diml++){
+ 	if(ConstraintBW_buffer(subblk_diml, subblk_dimi, subblk_dimj)){
+	  cout << endl;
+	  //cout << "subblk dimi: " << subblk_dimi << endl;
+	  //cout << "subblk dimj: " << subblk_dimj << endl;
+	  //cout << "subblk diml: " << subblk_diml << endl;
+
+	  int subblk_m = (m%subblk_dimi==0)?m/subblk_dimi:m/subblk_dimi+1;
+	  int subblk_n = (n%subblk_dimj==0)?n/subblk_dimj:n/subblk_dimj+1;
+	  int subblk_k = (k%subblk_diml==0)?k/subblk_diml:k/subblk_diml+1;
 	
-	if(num_tiles/num_tiles_mn!=0){
-	   MacroNodeTemplate* mn1_temp = new MacroNodeTemplate("store mtx temp1");
-	   mn1_temp->MN_store(num_tiles_mn);
-	   mn_temps.push_back(mn1_temp);
-	   for(int i=0; i<int(num_tiles/num_tiles_mn); i++){
-	      MacroNode* mn = new MacroNode(mn1_temp, mns.size());
-	      mns.push_back(mn);
-	   }
-	}
-	if(num_tiles%num_tiles_mn!=0){
-	   MacroNodeTemplate* mn2_temp = new MacroNodeTemplate("store mtx temp2");
-	   mn2_temp->MN_store(num_tiles%num_tiles_mn);
-	   mn_temps.push_back(mn2_temp);
-	   if(num_tiles%num_tiles_mn!=0){
-	      MacroNode* mn = new MacroNode(mn2_temp, mns.size());
-	      mns.push_back(mn);
-	   }
-	}
+	  for(blk_dimi_sb=1; blk_dimi_sb<=subblk_m; blk_dimi_sb++){
+	    blk_dimi = blk_dimi_sb*subblk_dimi;
+	    for(blk_dimj_sb=1; blk_dimj_sb<=subblk_n; blk_dimj_sb++){
+	      blk_dimj = blk_dimj_sb*subblk_dimj;
+	      for(blk_diml_sb=1; blk_diml_sb<=subblk_k; blk_diml_sb++){
+		blk_diml = blk_diml_sb*subblk_diml;
 
-	//map real tiles into mns
-	for(vector<int>::iterator t=tiles_idx.begin(); t!=tiles_idx.end(); t++){
-	   int mn_idx = (t-tiles_idx.begin())/num_tiles_mn;
-	   int tile_idx_mn = mns[mn_idx_start+mn_idx]->tile_map.size();
-	   mns[mn_idx_start+mn_idx]->tile_map[*t] = tile_idx_mn;
-	}
+	        blk_m = (m%blk_dimi==0)?m/blk_dimi: m/blk_dimi+1;
+	        blk_n = (n%blk_dimj==0)?n/blk_dimj: n/blk_dimj+1;
+	        blk_k = (k%blk_diml==0)?k/blk_diml: k/blk_diml+1;
 
-	cout << "pattern dimension (macronode): 1 x " << num_mns << endl;
+		a = blk_dimi*blk_diml;
+		b = blk_dimj*blk_diml;
+		c = blk_dimi*blk_dimj;
+                
+		a_region = (a%num_bank_a==0)?a/num_bank_a:a/num_bank_a+1;
+		b_region = (b%num_bank_b==0)?b/num_bank_b:b/num_bank_b+1;
+		c_region = (a%num_bank_c==0)?c/num_bank_c:c/num_bank_c+1;
+
+		if((a_region <= Memory::membanks[0].size)
+		    && (b_region <= Memory::membanks[0].size)
+		    && (c_region <= Memory::membanks[0].size)){
+	 
+		  unsigned long long cur_spill = spill_a_buffer()+spill_b_buffer();
+		  unsigned long long cur_perf = getPerf();
+
+		  if((cur_spill < num_spill)
+		      || ((cur_spill == num_spill) && (cur_perf < perf))){
+		    num_spill = cur_spill;
+		    perf = cur_perf;
+
+		    opti_para.subblk_dimi = subblk_dimi;
+		    opti_para.subblk_dimj = subblk_dimj;
+		    opti_para.subblk_diml = subblk_diml;
+		    opti_para.blk_dimi = blk_dimi;
+		    opti_para.blk_dimj = blk_dimj;
+		    opti_para.blk_diml = blk_diml;
+
+		    opti_para.m_ex = blk_m*blk_dimi;
+		    opti_para.n_ex = blk_n*blk_dimj;
+		    opti_para.k_ex = blk_k*blk_diml;
+
+		    opti_para.num_bank_a = num_bank_a;
+		    opti_para.num_bank_b = num_bank_b;
+		    opti_para.num_bank_c = num_bank_c;
+		  }
+
+		}
+	      }
+	    }
+	  }
+	  //cout << "num spill " << num_spill << endl;
+	}
+      }
+    }
+  }
+
+  opti_para.k_stage = opti_para.subblk_diml;
+  opti_para.num_cb = opti_para.subblk_dimi*opti_para.subblk_dimj;
+
+  //cout << "num spill " << num_spill << endl;
+  //cout << "perf " << perf << endl;
 }
+*/
 
 
-// Matrix multiplication
-MtxMul::MtxMul(vector<Operation> &ops, string &in_cp, const vector<vector<int>> &in_mtx1, const vector<vector<int>> &in_mtx2, vector<vector<int>> &out_mtx)
-{
-	cp = in_cp;
-	int pre_idx = ops.size()-1;
-
-	for(size_t i=0; i<in_mtx1.size(); i++){
-	   vector<int> out_mtx_row;
-	   for(size_t j=0; j<in_mtx2[0].size(); j++){
-	      // one dot product
-	      for(size_t k=0; k<in_mtx1[0].size(); k++){
-		 PatternUnit pu;
-
-		 pre_idx++;
-	         Operation op1;
-		 op1.idx = pre_idx;
-	         op1.in.push_back(in_mtx1[i][k]);
-	         op1.in.push_back(in_mtx2[k][j]);
-	         op1.fu = FunctionUnitLib::MUL;
-
-	         ops.push_back(op1);
-	         pu.ops.push_back(op1.idx);
-
-		 pre_idx++;
-	         Operation op2;
-	         op2.idx = pre_idx;
-	         if(k==0){
-	            op2.in.push_back(-1);
-	            op2.in.push_back(op1.idx);
-		    op2.fu = FunctionUnitLib::ADD;
-	         }
-	         else{
-		    // last one and second last one
-		    op2.in.push_back(op1.idx);
-		    op2.in.push_back(op1.idx-1);
-		    op2.fu = FunctionUnitLib::ADD;
-	         }
-	         ops.push_back(op2);
-		 pu.ops.push_back(op2.idx);
-
-	         if(k==in_mtx1[0].size()-1){
-	            out_mtx_row.push_back(op2.idx);
-	         }
-
-		 pus.push_back(pu);
-	      }
-	   }
-	   out_mtx.push_back(out_mtx_row);
-	}
-
-	name = "matrix_multiplication";
-
-	cb = ComputeBlockLib::cbs["mul_acc"];	
-
-	m = in_mtx1.size();
-	k = in_mtx1[0].size();
-	n = in_mtx2[0].size();
-}
-
-void MtxMul::TileGen(vector<Tile> &tiles, vector<Operation> &ops){
-	//initialize tiles
-	int num_tile_row = ((m*n)%cb->width == 0)? (m*n)/cb->width: (m*n)/cb->width+1;
-	int num_tile_col = (k%cb->max_depth == 0)? k/cb->max_depth: k/cb->max_depth+1;
-	
-	int tile_idx_start = tiles.size();
-	for(int i=0; i<num_tile_col; i++){
-	   for(int j=0; j<num_tile_row; j++){
-	      Tile tile(cb);
-	      if((k%cb->max_depth != 0) && (i == num_tile_col-1)){
-	         int cb_real_depth = k%cb->max_depth;
-		 tile.latency = cb->GetRealLatency(cb_real_depth);
-	      }
-	      else{
-		 tile.latency = cb->latency;
-	      }
-              tile.pattern_name = name;
-	      tile.cpsection_name = cp;
-	      tiles.push_back(tile);
-	      tiles_idx.push_back(tiles.size()-1);
-	   }
-	}
-
-	for(vector<PatternUnit>::iterator pu=pus.begin(); pu!=pus.end(); pu++){
-	   int idx = pu-pus.begin();
-	   int col_idx = idx/k;
-	   int row_idx = idx-col_idx*k;
-	   int tile_idx = tile_idx_start + int(row_idx/cb->max_depth)*num_tile_row + int(col_idx/cb->width);
-	   //add pu to the tiles[tile_idx];
-	   for(vector<int>::iterator op=pu->ops.begin(); op!=pu->ops.end(); op++){
-	      tiles[tile_idx].ops.push_back(*op);
-	      ops[*op].tile = tile_idx;
-	   }
-	}
-
-	cout << "pattern dimension (pu): " << k << " x " << m*n << endl;
-	cout << "pattern dimension (tile): " << num_tile_col << " x " << num_tile_row << endl;
-
-}
-
-void MtxMul::TileIdx()
-
-void MtxMul::MacroNodeGen(vector<MacroNode*> &mns){	
-	int mn_dimi = 2;
-	int mn_dimj = 2;
-	int mn_dimk = cb->max_depth;	
-
-	MacroNodeTemplate* mn_temp = new MacroNodeTemplate("mtxmul temp");
-	mn_temp->MN_mtxmul(mn_i, mn_j, mn_k);
-	mn_temps.push_back(mn_temp);
-
-	int num_tile_m = m;
-	int num_tile_n = n;
-	int num_tile_k = (k%cb->max_depth==0)?k/cb->max_depth:k/cb->max_depth+1;
-	for(int mn_i=0; mn_i<num_tile_m; mn_i+=mn_i){
-	   for(int mn_j=0; mn_j<num_tile_n; mn_j+=mn_j){
-	      for(int mn_k=0; mn_k<num_tile_k; mn_k++){
-	         MacroNode* mn = new MacroNode(mn_temp, mns.size());
-		 mns.push_back(mn);
-
-		 //add tiles	
-		 for(int tile_i=mn_i; tile_i<mn_dimi; tile_i++){
-		    for(int tile_j=mn_j; tile_j<mn_dimj; tile_j++){
-		       int tile_k = mn_k;
-		       int tile_idx = (num_tile_m*num_tile_n)*tile_k + num_tile_m*tile_j + tile_i;
-		       
-	      	       mn->tile_map[tiles_idx[tile_idx]] = mn->tile_map.size();  
-	            }
-	         }
-	      }
-	   }
-	}
-
-}
-
-void MtxMul::MacroNodeGen_old(vector<MacroNode*> &mns){
-	int k_tile = (k%cb->max_depth==0)?k/cb->max_depth:k/cb->max_depth+1;
-
-	int num_tiles_mn = 256;
-	
-	if(n*m < sqrt(num_tiles_mn)){
-	   //cout << "CASE1: m*n in same mn" << endl;
-	   //mn template
-	   int k_tile_mn = num_tiles_mn/(m*n);
-	   int num_mn1 = k_tile/k_tile_mn;
-	   int num_mn2 = k_tile%k_tile_mn;;
-
-	   int mn_idx_start = mns.size();
-	   if(num_mn1 != 0){
-	      //need mn template mn1
-	      MacroNodeTemplate* mn1_temp = new MacroNodeTemplate("mtxmul temp1");
-	      int k_mn = k_tile_mn*cb->max_depth;
-	      mn1_temp->MN_mtxmul(m,n,k_mn);
-	      mn_temps.push_back(mn1_temp);
-	      //cout << "number of tiles in mn1_temp " << mn1_temp.tiles.size() << endl;
-	      
-	      //initialize mns
-	      for(int i=0; i<num_mn1; i++){
-	         MacroNode* mn = new MacroNode(mn1_temp, mns.size());
-		 mns.push_back(mn);
-	      }
-	   }
-	   //cout << "num mn2 " << num_mn2 << endl;
-	   if(num_mn2 != 0){
-	      //need mn template mn2
-	      MacroNodeTemplate* mn2_temp = new MacroNodeTemplate("mtxmul temp2");
-	      int k_mn = k-num_mn1*k_tile_mn*cb->max_depth;
-	      mn2_temp->MN_mtxmul(m,n,k_mn);
-	      mn_temps.push_back(mn2_temp);
-	      //cout << "number of tiles in mn2_temp " << mn2_temp.tiles.size() << endl;
-
-	      MacroNode* mn = new MacroNode(mn2_temp, mns.size());
-	      mns.push_back(mn);
-	   }
-	   
-	   //cout << "num of mns generated " << mns.size() << endl;
-		
-	   //map tiles into mns
-	   for(vector<int>::iterator t=tiles_idx.begin(); t!=tiles_idx.end(); t++){
-	      int mn_idx = ((t-tiles_idx.begin())/(m*n))/k_tile_mn;
-	      int tile_idx = mns[mn_idx_start+mn_idx]->tile_map.size();
-	      mns[mn_idx_start+mn_idx]->tile_map[*t] = tile_idx;  
-	   }
-	   
-	   cout << "pattern dimension (macronode): " << num_mn1+num_mn2 << " x 1" << endl;	
-	}
-	else if(n <= sqrt(num_tiles_mn)){
-	   //cout << "CASE2: multiple n in same mn" << endl;
-	   //mn template
-	   int m_tile_mn = sqrt(num_tiles_mn)/n;
-	   int k_tile_mn = num_tiles_mn/(n*m_tile_mn);
-	   
-	   //cout << "m_tile_mn " << m_tile_mn << endl;
-	   //cout << "k_tile_mn " << k_tile_mn << endl;
-
-	   int mn_idx_start = mns.size();
-	   int num_mn_col = (k_tile%k_tile_mn==0)?(k_tile/k_tile_mn):(k_tile/k_tile_mn+1);
-	   int num_mn_row = (m%m_tile_mn==0)?(m/m_tile_mn):(m/m_tile_mn+1);
-
-	   if(k_tile/k_tile_mn != 0){
-	      MacroNodeTemplate* mn1_temp;
-	      MacroNodeTemplate* mn2_temp;
-	      if(m/m_tile_mn != 0){
-	         mn1_temp = new MacroNodeTemplate("mtxmul temp1");
-	         int k_mn = k_tile_mn*cb->max_depth;
-	         mn1_temp->MN_mtxmul(m_tile_mn, n, k_mn);
-	         mn_temps.push_back(mn1_temp);
-	         //cout << "number of tiles in mn1_temp " << mn1_temp.tiles.size() << endl;
-	      }
-	      if(m%m_tile_mn != 0){
-	         mn2_temp = new MacroNodeTemplate("mtxmul temp2");
-	         int m_mn = m%m_tile_mn;
-	         int k_mn = k_tile_mn*cb->max_depth;
-	         mn2_temp->MN_mtxmul(m_mn, n, k_mn);
-	         mn_temps.push_back(mn2_temp);
-	         //cout << "number of tiles in mn2_temp " << mn2_temp.tiles.size() << endl;
-	      }
-
-	      for(int i=0; i<(k_tile/k_tile_mn); i++){
-	         for(int j=0; j<(m/m_tile_mn); j++){
-		    MacroNode* mn = new MacroNode(mn1_temp, mns.size());
-	            mns.push_back(mn);
-	         }
-		 if(m%m_tile_mn != 0){
-		    MacroNode* mn = new MacroNode(mn2_temp, mns.size());
-		    mns.push_back(mn);
-		 }
-	      }
-	   }
-	   if(k_tile%k_tile_mn != 0){
-	      MacroNodeTemplate* mn3_temp;	
-	      MacroNodeTemplate* mn4_temp;
-	      if(m/m_tile_mn != 0){
-	         mn3_temp = new MacroNodeTemplate("mtxmul temp3");	
-                 int k_mn = k-(int(k_tile/k_tile_mn))*k_tile_mn*cb->max_depth;
-	         mn3_temp->MN_mtxmul(m_tile_mn, n, k_mn);
-	         mn_temps.push_back(mn3_temp);
-	         //cout << "number of tiles in mn3_temp " << mn3_temp.tiles.size() << endl;
-	      }
-	      if(m%m_tile_mn != 0){
-	         mn4_temp = new MacroNodeTemplate("mtxmul temp4");
-	         int m_mn = m%m_tile_mn;
-                 int k_mn = k-(int(k_tile/k_tile_mn))*k_tile_mn*cb->max_depth;
-	         mn4_temp->MN_mtxmul(m_mn, n, k_mn);
-	         mn_temps.push_back(mn4_temp);
-	         //cout << "number of tiles in mn4_temp " << mn4_temp.tiles.size() << endl;
-	      }
-
-	      for(int j=0; j<(m/m_tile_mn); j++){
-		 MacroNode* mn = new MacroNode(mn3_temp, mns.size());
-	         mns.push_back(mn);
-	      }
-	      if(m%m_tile_mn != 0){
-		 MacroNode* mn = new MacroNode(mn4_temp, mns.size());
-	         mns.push_back(mn);
-	      }
-	   }
-	
-	   //map tile into mns	
-	   for(vector<int>::iterator t=tiles_idx.begin(); t!=tiles_idx.end(); t++){
-	      int idx = t-tiles_idx.begin();
-	      int k_idx = idx/(m*n);
-	      int m_idx = (idx-k_idx*m*n)/n;
-	      int num_mn_row = (m%m_tile_mn==0)?m/m_tile_mn:m/m_tile_mn+1;
-	      int mn_idx = (k_idx/k_tile_mn)*num_mn_row + (m_idx/m_tile_mn);
-	      int tile_idx_mn = mns[mn_idx_start+mn_idx]->tile_map.size();
-	      mns[mn_idx_start+mn_idx]->tile_map[*t] = tile_idx_mn;  
-	   }
-	
-	   cout << "pattern dimension (macronode): " << num_mn_col << " x " << num_mn_row << endl;	   
-
-	}
-	else{
-	   //cout << "CASE3: multiple mn in same n" << endl;
-	   int m_tile_mn = 1;
-	   int n_tile_mn = int(sqrt(num_tiles_mn));
-	   int k_tile_mn = num_tiles_mn/(m_tile_mn*n_tile_mn);
-	   
-	   //cout << "n_tile_mn " << n_tile_mn << endl;
-	   //cout << "k_tile_mn " << k_tile_mn << endl;
-	   int mn_idx_start = mns.size();
-
-	   int num_mn_col = (k_tile%k_tile_mn==0)?(k_tile/k_tile_mn):(k_tile/k_tile_mn+1);
-	   int num_mn_row = (n%n_tile_mn==0)?m*(n/n_tile_mn):m*(n/n_tile_mn+1);
-	  
-	   if(k_tile/k_tile_mn != 0){
-	      MacroNodeTemplate* mn1_temp;
-	      MacroNodeTemplate* mn2_temp;
-	      int k_mn = k_tile_mn*cb->max_depth;
-	      if(n/n_tile_mn != 0){
-	         mn1_temp = new MacroNodeTemplate("mtxmul temp1");
-	         mn1_temp->MN_mtxmul(m_tile_mn, n_tile_mn, k_mn);
-	         mn_temps.push_back(mn1_temp);
-		 //cout << "number of tiles in mn1_temp " << mn1_temp.tiles.size() << endl;
-	      }
-	      if(n%n_tile_mn != 0){
-	         mn2_temp = new MacroNodeTemplate("mtxmul temp2");
-	         int n_mn = n%n_tile_mn;
-		 mn2_temp->MN_mtxmul(m_tile_mn, n_mn, k_mn);
-	         mn_temps.push_back(mn2_temp);
-		 //cout << "number of tiles in mn2_temp " << mn2_temp.tiles.size() << endl;
-	      }
-
-	      for(int i=0; i<(k_tile/k_tile_mn); i++){
-	         for(int j=0; j<m; j++){
-		    for(int l=0; l<(n/n_tile_mn); l++){
-		       MacroNode* mn = new MacroNode(mn1_temp, mns.size());
-		       mns.push_back(mn);
-		    }
-		    if(n%n_tile_mn != 0){
-		       MacroNode* mn = new MacroNode(mn2_temp, mns.size());
-		       mns.push_back(mn);
-		    }
-	         }
-	      }
-	   }
-	   if(k_tile%k_tile_mn != 0){
-	      MacroNodeTemplate* mn3_temp;
-	      MacroNodeTemplate* mn4_temp;
-              int k_mn = k-(int(k_tile/k_tile_mn))*k_tile_mn*cb->max_depth;
-	      if(n/n_tile_mn != 0){
-	         mn3_temp = new MacroNodeTemplate("mtxmul temp3");
-	         mn3_temp->MN_mtxmul(m_tile_mn, n_tile_mn, k_mn);
-	         mn_temps.push_back(mn3_temp);
-		 //cout << "number of tiles in mn3_temp " << mn3_temp.tiles.size() << endl;
-	      }
-	      if(n%n_tile_mn != 0){
-	         mn4_temp = new MacroNodeTemplate("mtxmul temp4");
-	         int n_mn = n%n_tile_mn;
-	         mn4_temp->MN_mtxmul(m_tile_mn, n_mn, k_mn);
-	         mn_temps.push_back(mn4_temp);
-		 //cout << "number of tiles in mn4_temp " << mn4_temp.tiles.size() << endl;
-	      }
-	
-	      for(int j=0; j<m; j++){
-		 for(int l=0; l<(n/n_tile_mn); l++){
-		    MacroNode* mn = new MacroNode(mn3_temp, mns.size());
-		    mns.push_back(mn);
-		 }
-		 if(n%n_tile_mn != 0){
-		    MacroNode* mn = new MacroNode(mn4_temp, mns.size());
-		    mns.push_back(mn);
-		 }
-	      }
-	   }
- 
-	   //map tile into mns	
-	   for(vector<int>::iterator t=tiles_idx.begin(); t!=tiles_idx.end(); t++){
-	      int idx = t-tiles_idx.begin();
-	      int k_idx = idx/(m*n);
-	      int m_idx = (idx-k_idx*m*n)/n;
-	      int n_idx = (idx-k_idx*m*n)-m_idx*n;
-	      int num_mn_n = (n%n_tile_mn==0)?(n/n_tile_mn):(n/n_tile_mn+1);
-	      int num_mn_row = m*num_mn_n;
-	      int mn_idx = (k_idx/k_tile_mn)*num_mn_row + (m_idx/m_tile_mn)*num_mn_n + (n_idx/n_tile_mn);
-	      int tile_idx_mn = mns[mn_idx_start+mn_idx]->tile_map.size();
-	      mns[mn_idx_start+mn_idx]->tile_map[*t] = tile_idx_mn;  
-	   }
-
-	   cout << "pattern dimension (macronode): " << num_mn_col << " x " << num_mn_row << endl;	   
-	}
-}
-
-MtxMulAdd::MtxMulAdd(vector<Operation> &ops, string &in_cp, const vector<vector<int>> &in_mtx1, const vector<vector<int>> &in_mtx2, const vector<vector<int>> &in_mtx3, vector<vector<int>> &out_mtx)
-{
-	cp = in_cp;
-	int pre_idx = ops.size()-1;
-
-	for(size_t i=0; i<in_mtx1.size(); i++){
-	   vector<int> out_mtx_row;
-	   for(size_t j=0; j<in_mtx2[0].size(); j++){
-	      // one dot product
-	      for(size_t k=0; k<in_mtx1[0].size(); k++){
-		 PatternUnit pu;
-
-		 pre_idx++;
-	         Operation op1;
-		 op1.idx = pre_idx;
-	         op1.in.push_back(in_mtx1[i][k]);
-	         op1.in.push_back(in_mtx2[k][j]);
-	         op1.fu = FunctionUnitLib::MUL;
-
-	         ops.push_back(op1);
-	         pu.ops.push_back(op1.idx);
-
-		 pre_idx++;
-	         Operation op2;
-	         op2.idx = pre_idx;
-	         if(k==0){
-	            op2.in.push_back(in_mtx3[i][j]);
-	            op2.in.push_back(op1.idx);
-		    op2.fu = FunctionUnitLib::ADD;
-	         }
-	         else{
-		    // last one and second last one
-		    op2.in.push_back(op1.idx);
-		    op2.in.push_back(op1.idx-1);
-		    op2.fu = FunctionUnitLib::ADD;
-	         }
-	         ops.push_back(op2);
-		 pu.ops.push_back(op2.idx);
-
-	         if(k==in_mtx1[0].size()-1){
-	            out_mtx_row.push_back(op2.idx);
-	         }
-
-		 pus.push_back(pu);
-	      }
-	   }
-	   out_mtx.push_back(out_mtx_row);
-	}
-
-	name = "matrix_multiplication_addition";
-
-	cb = ComputeBlockLib::cbs["mul_acc"];	
-}
-
-
-// Calculate the sum of each column
-ColSum::ColSum(vector<Operation> &ops, string &in_cp, const vector<vector<int>> &in_mtx, vector<int> &out_vec)
-{
-	cp = in_cp;
-	int pre_idx = ops.size()-1;
-
-	for(size_t j=0; j<in_mtx[0].size(); j++){
-	   for(size_t i=0; i<in_mtx.size(); i++){
-	      PatternUnit pu;
-
-	      pre_idx++;
-	      Operation op;
-	      op.idx = pre_idx;
-	      if(i==0){
-	         op.fu = FunctionUnitLib::ADD;
-		 op.in.push_back(-1);
-	         op.in.push_back(in_mtx[i][j]);
-	      }
-              else{
-		 op.fu = FunctionUnitLib::ADD;
-	         op.in.push_back(in_mtx[i][j]);
-	         op.in.push_back(pre_idx-1);
-	      }
-	      ops.push_back(op);
-	      pu.ops.push_back(op.idx);
-
-	      if(i==in_mtx.size()-1){
-	         out_vec.push_back(op.idx);
-	      }
-
-	      pus.push_back(pu);
-           }
-	}
-
-	name = "Pattern: sum of each column of matrix";
-	description = "Each column sum consists of a series of addition.";
-
-	cb = ComputeBlockLib::cbs["acc"];
-}
-
-Div_vec::Div_vec(vector<Operation> &ops, string &in_cp, const vector<int> &in_vec1, const vector<int> &in_vec2, vector<int> &out_vec)
-{
-	cp = in_cp;
-	int pre_idx = ops.size()-1;
-
-	for(size_t i=0; i<in_vec1.size(); i++){
-	   PatternUnit pu;
-	   
-	   pre_idx++;
-	   Operation op;
-	   op.idx = pre_idx;
-	   op.fu = FunctionUnitLib::DIV;
-	   op.in.push_back(in_vec1[i]);
-	   op.in.push_back(in_vec2[i]);
-	   ops.push_back(op);
-	   pu.ops.push_back(op.idx);
-	   out_vec.push_back(op.idx);
-
-	   pus.push_back(pu);
-	}
-
-	name = "Pattern: vector element-wise division";
-	description = "Each vector element is divided by the other vector element";
-
-	cb = ComputeBlockLib::cbs["div"];
-}
-
-
-Div_mtx::Div_mtx(vector<Operation> &ops, string &in_cp, const vector<vector<int>> &in_mtx1, const vector<vector<int>> &in_mtx2, vector<vector<int>> &out_mtx)
-{
-	cp = in_cp;
-	int pre_idx = ops.size()-1;
-
-	for(size_t i=0; i<in_mtx1.size(); i++){
-	   vector<int> out_mtx_row;
-	   for(size_t j=0; j<in_mtx1[0].size(); j++){
-	      PatternUnit pu;
-	   
-	      pre_idx++;
-	      Operation op;
-	      op.idx = pre_idx;
-	      op.fu = FunctionUnitLib::DIV;
-	      op.in.push_back(in_mtx1[i][j]);
-	      op.in.push_back(in_mtx2[i][j]);
-	      ops.push_back(op);
-	      pu.ops.push_back(op.idx);
-	      out_mtx_row.push_back(op.idx);
-
-	      pus.push_back(pu);
-	   }
-	   out_mtx.push_back(out_mtx_row);
-	}
-
-	name = "Pattern: mtx element-wise division";
-	description = "Each mtx element is divided by the other mtx element";
-
-	cb = ComputeBlockLib::cbs["div"];
-}
-
-
-Sub_mtx::Sub_mtx(vector<Operation> &ops, string &in_cp, const vector<vector<int>> &in_mtx1, const vector<vector<int>> &in_mtx2, vector<vector<int>> &out_mtx)
-{
-	cp = in_cp;
-	int pre_idx = ops.size()-1;
-
-	for(size_t i=0; i<in_mtx1.size(); i++){
-	   vector<int> out_mtx_row;
-	   for(size_t j=0; j<in_mtx1[0].size(); j++){
-	      PatternUnit pu;
-	  
-	      pre_idx++;
-	      Operation op;
-	      op.idx = pre_idx;
-	      op.fu = FunctionUnitLib::SUB;
-	      op.in.push_back(in_mtx1[i][j]);
-	      op.in.push_back(in_mtx2[i][j]);
-	      ops.push_back(op);
-	      pu.ops.push_back(op.idx);
-	      out_mtx_row.push_back(op.idx);
-
-	      pus.push_back(pu);
-	   }
-	   out_mtx.push_back(out_mtx_row);
-	}
-
-	name = "Pattern: mtx element-wise subtraction";
-	description = "Each mtx element is subtracted by the other mtx element";
-
-	cb = ComputeBlockLib::cbs["sub"];
-}
-
-SquareAcc_vec::SquareAcc_vec(vector<Operation> &ops, string &in_cp, const vector<int> &in_vec, int &out)
-{
-	cp = in_cp;
-	int pre_idx = ops.size()-1;
-	
-	for(size_t i=0; i<in_vec.size(); i++){
-	   PatternUnit pu;
-	   
-	   pre_idx++;
-	   Operation op1;
-	   op1.idx = pre_idx;
-	   op1.in.push_back(in_vec[i]);
-	   op1.in.push_back(in_vec[i]);
-	   op1.fu = FunctionUnitLib::MUL;
-	   ops.push_back(op1);
-	   pu.ops.push_back(op1.idx);
-
-	   pre_idx++;
-	   Operation op2;
-	   op2.idx = pre_idx;
-	   op2.in.push_back(op1.idx);
-	   if(i == 0){
-	      op2.in.push_back(-1);
-	   }
-	   else{
-	      op2.in.push_back(op1.idx-1);
-	   }
-	   op2.fu = FunctionUnitLib::ADD;
-	   ops.push_back(op2);
-	   pu.ops.push_back(op2.idx);
-	  
-	   if(i == in_vec.size()-1){
-	      out = op2.idx;
-	   }
-
-	   pus.push_back(pu);
-	}
-
-	name = "Pattern: sum of element square";
-	description = "Sum of element square in the vector";
-
-	cb = ComputeBlockLib::cbs["mul_acc"];
-}
-
-//square acc of mtx col
-SquareAcc_mtx::SquareAcc_mtx(vector<Operation> &ops, string &in_cp, const vector<vector<int>> &in_mtx, vector<int> &out_vec)
-{
-	cp = in_cp;
-	int pre_idx = ops.size()-1;
-	
-	for(size_t j=0; j<in_mtx[0].size(); j++){
-	   for(size_t i=0; i<in_mtx.size(); i++){
-	
-	      PatternUnit pu;
-	   
-	      pre_idx++;
-	      Operation op1;
-	      op1.idx = pre_idx;
-	      op1.in.push_back(in_mtx[i][j]);
-	      op1.in.push_back(in_mtx[i][j]);
-	      op1.fu = FunctionUnitLib::MUL;
-	      ops.push_back(op1);
-	      pu.ops.push_back(op1.idx);
-
-	      pre_idx++;
-	      Operation op2;
-	      op2.idx = pre_idx;
-	      op2.in.push_back(op1.idx);
-	      if(i == 0){
-	         op2.in.push_back(-1);
-	      }
-	      else{
-	         op2.in.push_back(op1.idx-1);
-	      }
-	      op2.fu = FunctionUnitLib::ADD;
-	      ops.push_back(op2);
-	      pu.ops.push_back(op2.idx);
-	  
-	      if(i == in_mtx.size()-1){
-	         out_vec.push_back(op2.idx);
-	      }
-
-	      pus.push_back(pu);
-	   }
-	}
-
-	name = "Pattern: sum of element square";
-	description = "Sum of element square in the mtx";
-
-	cb = ComputeBlockLib::cbs["mul_acc"];
-}
-
-DivRoot::DivRoot(vector<Operation> &ops, string &in_cp, const vector<int> &in_vec1, const vector<int> &in_vec2, vector<int> &out_vec)
-{
-	cp = in_cp;
-	int pre_idx = ops.size()-1;
-
-	for(size_t i=0; i<in_vec1.size(); i++){
-	   PatternUnit pu;
-	
-	   pre_idx++;
-	   Operation op1;
-	   op1.idx = pre_idx;
-	   op1.in.push_back(in_vec1[i]);
-	   op1.in.push_back(in_vec2[i]);
-	   op1.fu = FunctionUnitLib::DIV;
-	   ops.push_back(op1);
-	   pu.ops.push_back(op1.idx);
-
-	   pre_idx++;
-	   Operation op2;
-	   op2.idx = pre_idx;
-	   op2.in.push_back(op1.idx);
-	   op2.fu = FunctionUnitLib::ROOT;
-	   ops.push_back(op2);
-	   pu.ops.push_back(op2.idx);
-
-	   out_vec.push_back(op2.idx);
-
-	   pus.push_back(pu);
-	}
-
-	name = "Pattern: division between two vectors and then get root";
-	description = "Division between two vectors and then get root";
-
-	cb = ComputeBlockLib::cbs["div_root"];
-}
-
-
-Root_s::Root_s(vector<Operation> &ops, string &in_cp, int in_s, int &out_s)
-{
-	cp = in_cp;
-	int pre_idx = ops.size()-1;
-
-	PatternUnit pu;
-
-	pre_idx++;
-	Operation op;
-	op.idx = pre_idx;
-	op.in.push_back(in_s);
-	op.fu = FunctionUnitLib::ROOT;
-        ops.push_back(op);
-	pu.ops.push_back(op.idx);
-	out_s = op.idx;
-	  
-	pus.push_back(pu);
-
-	name = "Pattern: root of each element in vector";
-	description = "Get root value of each vector element. ";
-
-	cb = ComputeBlockLib::cbs["root_s"];	 
-}
-
-Div_s::Div_s(vector<Operation> &ops, string &in_cp, int in_s1, int in_s2, int &out_s)
-{
-	cp = in_cp;
-	int pre_idx = ops.size()-1;
-
-	PatternUnit pu;
-	pre_idx++;
-	Operation op;
-	op.idx = pre_idx;
-	op.in.push_back(in_s1);
-	op.in.push_back(in_s2);
-	ops.push_back(op);
-	pu.ops.push_back(op.idx);
-	out_s = op.idx;
-
-	pus.push_back(pu);
-
-	name = "Pattern: division between two scalar";
-	description = "Division between two scalar";
-
-	cb = ComputeBlockLib::cbs["div_s"];
-}
-
-Jacobi_cs::Jacobi_cs(vector<Operation> &ops, string &in_cp, int app, int aqq, int apq, int &c, int &s, int &ns){
-	cp = in_cp;
-	int pre_idx = ops.size()-1;
-
-	PatternUnit pu;
-	
-	pre_idx++;
-	Operation op1;
-	op1.idx = pre_idx;
-	op1.in.push_back(aqq);
-	op1.in.push_back(app);
-	op1.fu = FunctionUnitLib::SUB;
-	ops.push_back(op1);
-	pu.ops.push_back(op1.idx);
-
-	pre_idx++;
-	Operation op2;
-	op2.idx = pre_idx;
-	op2.in.push_back(apq);
-	op2.in.push_back(op1.idx);
-	op2.fu = FunctionUnitLib::DIV;
-	ops.push_back(op2);
-	pu.ops.push_back(op2.idx);
-
-	//t:op2.idx
-
-	pre_idx++;
-	Operation op3;
-	op3.idx = pre_idx;
-	op3.in.push_back(op2.idx);
-	op3.in.push_back(op2.idx);
-	op3.fu = FunctionUnitLib::MUL;
-	ops.push_back(op3);
-	pu.ops.push_back(op3.idx);
-
-	pre_idx++;
-	Operation op4;
-	op4.idx = pre_idx;
-	op4.in.push_back(op3.idx);
-	op4.in.push_back(-1);
-	op4.fu = FunctionUnitLib::ADD;
-	ops.push_back(op4);
-	pu.ops.push_back(op4.idx);
-
-	pre_idx++;
-	Operation op5;
-	op5.idx = pre_idx;
-	op5.in.push_back(op4.idx);
-	op5.fu = FunctionUnitLib::ROOT;
-	ops.push_back(op5);
-	pu.ops.push_back(op5.idx);
-
-	pre_idx++;
-	Operation op6;
-	op6.idx = pre_idx;
-	op6.in.push_back(-1);
-	op6.in.push_back(op5.idx);
-	op6.fu = FunctionUnitLib::DIV;
-	ops.push_back(op6);
-	pu.ops.push_back(op6.idx);
-
-	c = op6.idx;
-
-	pre_idx++;
-	Operation op7;
-	op7.idx = pre_idx;
-	op7.in.push_back(op2.idx);
-	op7.in.push_back(op6.idx);
-	op7.fu = FunctionUnitLib::MUL;
-	ops.push_back(op7);
-	pu.ops.push_back(op7.idx);
-
-	s = op7.idx;
-
-	pre_idx++;
-	Operation op8;
-	op8.idx = pre_idx;
-	op8.in.push_back(-1);
-	op8.in.push_back(op7.idx);
-	op8.fu = FunctionUnitLib::SUB;
-	ops.push_back(op8);
-	pu.ops.push_back(op8.idx);
-
-	ns = op8.idx;
-
-	pus.push_back(pu);
-
-	name = "Pattern: c,s in Jacobi transformation";
-	description = "generate c,s used in Jacobi transformation";
-
-	cb = ComputeBlockLib::cbs["jacobi_s"];
-}
-
-Givens_cs::Givens_cs(vector<Operation> &ops, string &in_cp, int arp, int arq, bool zero_arp, int &c, int &s, int &ns){
-	
-	//cout << "in givens pattern, arp: " << arp << endl;
-	//cout << "in givens pattern, arq: " << arq << endl;
-	
-	cp = in_cp;
-	int pre_idx = ops.size()-1;
-
-	PatternUnit pu;
-	
-	pre_idx++;
-	Operation op1;
-	op1.idx = pre_idx;
-	op1.in.push_back(arp);
-	op1.in.push_back(arp);
-	op1.fu = FunctionUnitLib::MUL;
-	ops.push_back(op1);
-	pu.ops.push_back(op1.idx);
-
-	pre_idx++;
-	Operation op2;
-	op2.idx = pre_idx;
-	op2.in.push_back(arq);
-	op2.in.push_back(arq);
-	op2.fu = FunctionUnitLib::MUL;
-	ops.push_back(op2);
-	pu.ops.push_back(op2.idx);
-
-	pre_idx++;
-	Operation op3;
-	op3.idx = pre_idx;
-	op3.in.push_back(op1.idx);
-	op3.in.push_back(op2.idx);
-	op3.fu = FunctionUnitLib::ADD;
-	ops.push_back(op3);
-	pu.ops.push_back(op3.idx);
-
-	pre_idx++;
-	Operation op4;
-	op4.idx = pre_idx;
-	op4.in.push_back(op3.idx);
-	op4.fu = FunctionUnitLib::ROOT;
-	ops.push_back(op4);
-	pu.ops.push_back(op4.idx);
-
-	pre_idx++;
-	Operation op5;
-	op5.idx = pre_idx;
-	if(zero_arp){
-	   op5.in.push_back(arq);
-	}
-	else{
-	   op5.in.push_back(arp);
-	}
-	op5.in.push_back(op4.idx);
-	op5.fu = FunctionUnitLib::DIV;
-	ops.push_back(op5);
-	pu.ops.push_back(op5.idx);
-
-	c = op5.idx;
-
-	pre_idx++;
-	Operation op6;
-	op6.idx = pre_idx;
-	if(zero_arp){
-	   op6.in.push_back(arp);
-	}
-	else{
-	   op6.in.push_back(arq);
-	}
-	op6.in.push_back(op4.idx);
-	op6.fu = FunctionUnitLib::DIV;
-	ops.push_back(op6);
-	pu.ops.push_back(op6.idx);
-
-	s = op6.idx;
-
-	pre_idx++;
-	Operation op7;
-	op7.idx = pre_idx;
-	op7.in.push_back(-1);
-	op7.in.push_back(op6.idx);
-	op7.fu = FunctionUnitLib::SUB;
-	ops.push_back(op7);
-	pu.ops.push_back(op7.idx);
-
-	ns = op7.idx;
-
-	pus.push_back(pu);
-	
-	name = "Pattern: C, S in Givens transformation";
-	description = "generate c,s used in Givens transformation";
-
-	cb = ComputeBlockLib::cbs["givens_s"];	
-};
 

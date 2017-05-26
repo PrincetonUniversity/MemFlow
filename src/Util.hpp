@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <set>
+#include <array>
 
 using namespace std;
 /*
@@ -22,9 +23,12 @@ namespace FunctionUnitLib
 {
 	const struct FunctionUnit LOAD = {"load", 4};
 	const struct FunctionUnit STORE = {"store", 4};
+	const struct FunctionUnit COPY = {"copy", 1};
+	//const struct FunctionUnit ADD = {"add", 10};
 	const struct FunctionUnit ADD = {"add", 1};
 	const struct FunctionUnit SUB = {"sub", 1};
-	const struct FunctionUnit MUL = {"mul", 3};
+	//const struct FunctionUnit MUL = {"mul", 6};
+	const struct FunctionUnit MUL = {"mul", 1};
 	const struct FunctionUnit DIV = {"divide", 3};
 	const struct FunctionUnit ROOT = {"root", 3};
 };
@@ -37,6 +41,7 @@ struct ComputeBlockUnit{
 namespace ComputeBlockUnitLib{
 	const struct ComputeBlockUnit LOAD = {"load", {FunctionUnitLib::LOAD}};
 	const struct ComputeBlockUnit STORE = {"store", {FunctionUnitLib::STORE}};
+	const struct ComputeBlockUnit COPY = {"copy", {FunctionUnitLib::COPY}};
 	const struct ComputeBlockUnit SUB = {"sub", {FunctionUnitLib::SUB}};
 	const struct ComputeBlockUnit DIV = {"div", {FunctionUnitLib::DIV}};
 	const struct ComputeBlockUnit DIV_ROOT = {"div_root", {FunctionUnitLib::DIV, FunctionUnitLib::ROOT}};
@@ -77,7 +82,19 @@ struct Operation{
 	vector<int> in;
 	set<int> out;
 	FunctionUnit fu;
+	array<int,2> sp_addr = array<int,2>{0,0};
 	int tile = -1;
+
+	bool has_produced = false;
+};
+
+
+enum DblkSPAddrIdx{
+  ZERO_IDX,
+  ROW_IDX,
+  COL_IDX,
+  ROWMAJOR_IDX,
+  COLMAJOR_IDX
 };
 
 #endif
