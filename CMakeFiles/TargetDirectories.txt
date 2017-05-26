@@ -1,0 +1,3 @@
+/u/qnie/research/MappingOpti/ALG/CMakeFiles/rebuild_cache.dir
+/u/qnie/research/MappingOpti/ALG/CMakeFiles/edit_cache.dir
+/u/qnie/research/MappingOpti/ALG/CMakeFiles/opti.dir
