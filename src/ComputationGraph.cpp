@@ -377,6 +377,13 @@ void ComputationGraph::CP_Load(int m, int n, vector<vector<int>> &out_mtx)
   patterns.push_back(p1);
 }
 
+void ComputationGraph::CP_LoadVec(int m, vector<int> &out_vec){
+  string cp = "CP: load vec";
+
+  Load_vec* p1 = new Load_vec(ops, mn_name, m, out_vec);
+  patterns.push_back(p1);
+}
+
 void ComputationGraph::CP_Store(const vector<vector<int>> &in_mtx)
 {
   string cp = "CP: store matrix";
@@ -404,19 +411,19 @@ void ComputationGraph::CP_SuborAddMtxMul(bool is_add, const vector<vector<int>> 
 
   for(int i=0; i<m; i++){
     for(int j=0; j<k; j++){
-      ops[in_mtx1[i][j]].sp_addr = dblks["MM_A"]->getElementSPAddr(i,j);
+      ops[in_mtx1[i][j]].sp_addr = dblks["A"]->getElementSPAddr(i,j);
       ops[in_mtx1[i][j]].has_produced = true;
     }
   }
   for(int i=0; i<k; i++){
     for(int j=0; j<n; j++){
-      ops[in_mtx2[i][j]].sp_addr = dblks["MM_B"]->getElementSPAddr(i,j);
+      ops[in_mtx2[i][j]].sp_addr = dblks["B"]->getElementSPAddr(i,j);
       ops[in_mtx2[i][j]].has_produced = true;
     }
   }
   for(int i=0; i<m; i++){
     for(int j=0; j<n; j++){
-      ops[in_mtx3[i][j]].sp_addr = dblks["MM_C"]->getElementSPAddr(i,j);
+      ops[in_mtx3[i][j]].sp_addr = dblks["C"]->getElementSPAddr(i,j);
       ops[in_mtx3[i][j]].has_produced = true;
     }
   }
@@ -435,7 +442,7 @@ void ComputationGraph::CP_LU(const vector<vector<int>> &in_mtxa, vector<vector<i
   //set sp_addr
   for(int i=0; i<n; i++){
     for(int j=0; j<n; j++){
-      ops[in_mtxa[i][j]].sp_addr = dblks["LU_A"]->getElementSPAddr(i,j);
+      ops[in_mtxa[i][j]].sp_addr = dblks["A"]->getElementSPAddr(i,j);
       ops[in_mtxa[i][j]].has_produced = true;
     }
   }
@@ -466,7 +473,7 @@ void ComputationGraph::CP_LU(const vector<vector<int>> &in_mtxa, vector<vector<i
     for(int li=0; li<n; li++){
       if(li > i){
         out_mtxl[li].push_back(l_col[li-i-1]);
-	ops[l_col[li-i-1]].sp_addr = dblks["LU_L_Tr"]->getElementSPAddr(li,i);
+	ops[l_col[li-i-1]].sp_addr = dblks["L"]->getElementSPAddr(li,i);
       }
     }
   
@@ -480,7 +487,7 @@ void ComputationGraph::CP_LU(const vector<vector<int>> &in_mtxa, vector<vector<i
     Copy_vec* p2 = new Copy_vec(ops, mn_name, u_row, u_row_copy);
     patterns.push_back(p2);
     for(int ui=0; ui<u_row_copy.size(); ui++){
-      ops[u_row_copy[ui]].sp_addr = dblks["LU_U_Tr"]->getElementSPAddr(i,ui+i+1);
+      ops[u_row_copy[ui]].sp_addr = dblks["U"]->getElementSPAddr(i,ui+i+1);
     }
     
     vector<vector<int>> u_row_mtx;
@@ -495,7 +502,7 @@ void ComputationGraph::CP_LU(const vector<vector<int>> &in_mtxa, vector<vector<i
 
     for(int ai=0; ai<updated_a.size(); ai++){
       for(int aj=0; aj<updated_a[0].size(); aj++){
-        ops[updated_a[ai][aj]].sp_addr = dblks["LU_A"]->getElementSPAddr(i+1+ai, i+1+aj);
+        ops[updated_a[ai][aj]].sp_addr = dblks["A"]->getElementSPAddr(i+1+ai, i+1+aj);
       }
     }
 
@@ -512,13 +519,13 @@ void ComputationGraph::CP_LUCPL(const vector<vector<int>> &in_mtxa, const vector
 
   for(int i=0; i<n; i++){
     for(int j=0; j<n; j++){
-      ops[in_mtxa[i][j]].sp_addr = dblks["LUCPL_A"]->getElementSPAddr(i,j);
+      ops[in_mtxa[i][j]].sp_addr = dblks["A"]->getElementSPAddr(i,j);
       ops[in_mtxa[i][j]].has_produced = true;
     }
   }
   for(int i=0; i<n; i++){
     for(int j=i; j<n; j++){
-      ops[in_mtxu[i][j]].sp_addr = dblks["LUCPL_U_Tr"]->getElementSPAddr(i,j);
+      ops[in_mtxu[i][j]].sp_addr = dblks["U"]->getElementSPAddr(i,j);
       ops[in_mtxu[i][j]].has_produced = true;
     }
   }
@@ -549,7 +556,7 @@ void ComputationGraph::CP_LUCPL(const vector<vector<int>> &in_mtxa, const vector
 
     for(int li=0; li<n; li++){
       out_mtxl[li].push_back(l_col[li]);
-      ops[l_col[li]].sp_addr = dblks["LUCPL_L"]->getElementSPAddr(i,li);
+      ops[l_col[li]].sp_addr = dblks["L"]->getElementSPAddr(i,li);
     }
 
     if(i < (n-1)){
@@ -570,7 +577,7 @@ void ComputationGraph::CP_LUCPL(const vector<vector<int>> &in_mtxa, const vector
 
       for(int ai=0; ai<updated_a.size(); ai++){
         for(int aj=0; aj<updated_a[ai].size(); aj++){
-	  ops[updated_a[ai][aj]].sp_addr = dblks["LUCPL_A"]->getElementSPAddr(ai, aj+i+1);
+	  ops[updated_a[ai][aj]].sp_addr = dblks["A"]->getElementSPAddr(ai, aj+i+1);
 	}
       }
 
@@ -580,21 +587,20 @@ void ComputationGraph::CP_LUCPL(const vector<vector<int>> &in_mtxa, const vector
 
 void ComputationGraph::CP_TRS(const vector<vector<int>>& in_mtxa, const vector<vector<int>>& in_mtxb, vector<vector<int>>& out_mtxx){
   string cp = "CP: TRS solving";
-  cout << "in mn temp trs " << endl;
 
   int n = in_mtxa.size();
 
   //set sp_addr
   for(int i=0; i<n; i++){
     for(int j=0; j<=i; j++){
-      ops[in_mtxa[i][j]].sp_addr = dblks["TRS_A_Tr"]->getElementSPAddr(i,j);
+      ops[in_mtxa[i][j]].sp_addr = dblks["A"]->getElementSPAddr(i,j);
       ops[in_mtxa[i][j]].has_produced = true;
     }
   }
 
   for(int i=0; i<n; i++){
     for(int j=0; j<n; j++){
-      ops[in_mtxb[i][j]].sp_addr = dblks["TRS_B"]->getElementSPAddr(i,j);
+      ops[in_mtxb[i][j]].sp_addr = dblks["B"]->getElementSPAddr(i,j);
       ops[in_mtxb[i][j]].has_produced = true;
     }
   }
@@ -603,7 +609,6 @@ void ComputationGraph::CP_TRS(const vector<vector<int>>& in_mtxa, const vector<v
   updated_b = in_mtxb;
 
   for(int i=0; i<n; i++){
-    cout << endl << "i " << i << endl;
     //div
     vector<int> x_row;
 
@@ -615,9 +620,8 @@ void ComputationGraph::CP_TRS(const vector<vector<int>>& in_mtxa, const vector<v
 
     out_mtxx.push_back(x_row);
     for(int xi=0; xi<n; xi++){
-      ops[x_row[xi]].sp_addr = dblks["TRS_X"]->getElementSPAddr(i,xi);
+      ops[x_row[xi]].sp_addr = dblks["X"]->getElementSPAddr(i,xi);
     }
-    cout << "get sp add for x" << endl;
 
     if(i < (n-1)){
       vector<int> a_col;
@@ -632,9 +636,7 @@ void ComputationGraph::CP_TRS(const vector<vector<int>>& in_mtxa, const vector<v
       patterns.push_back(p2);
       
       for(int ai=0; ai<a_col_new.size(); ai++){
-	cout << "ai " << ai << endl;
-	cout << "idx in a " << i+1+ai << "," << i << endl;
-	ops[a_col_new[ai]].sp_addr = dblks["TRS_A_Tr"]->getElementSPAddr(i+1+ai, i);
+	ops[a_col_new[ai]].sp_addr = dblks["A"]->getElementSPAddr(i+1+ai, i);
       }
 
       //copy
@@ -643,7 +645,7 @@ void ComputationGraph::CP_TRS(const vector<vector<int>>& in_mtxa, const vector<v
       patterns.push_back(p3);
 
       for(int bi=0; bi<b_row.size(); bi++){
-	ops[b_row[bi]].sp_addr = dblks["TRS_Brow"]->getElementSPAddr(1,bi);
+	ops[b_row[bi]].sp_addr = dblks["Brow"]->getElementSPAddr(1,bi);
       }
 
       vector<vector<int>> cur_b;
@@ -661,7 +663,7 @@ void ComputationGraph::CP_TRS(const vector<vector<int>>& in_mtxa, const vector<v
 
       for(int bi=0; bi<updated_b.size(); bi++){
 	for(int bj=0; bj<updated_b[bi].size(); bj++){
-	  ops[updated_b[bi][bj]].sp_addr = dblks["TRS_B"]->getElementSPAddr(bi+i+1,bj);
+	  ops[updated_b[bi][bj]].sp_addr = dblks["B"]->getElementSPAddr(bi+i+1,bj);
 	}
       }
     }
@@ -669,9 +671,394 @@ void ComputationGraph::CP_TRS(const vector<vector<int>>& in_mtxa, const vector<v
   }
 }
 
+void ComputationGraph::CP_QR(const vector<vector<int>> &in_mtxa, vector<vector<int>> &out_mtxq, vector<vector<int>> &out_mtxr){
+  string cp = "CP: QR";
 
+  int n = in_mtxa.size();
 
+  for(int i=0; i<n; i++){
+    for(int j=0; j<n; j++){
+      ops[in_mtxa[i][j]].sp_addr = dblks["R"]->getElementSPAddr(i,j);
+      ops[in_mtxa[i][j]].has_produced = true;
+    }
+  }
 
+  //initialize qout
+  for(int i=0; i<n; i++){
+    vector<int> row;
+    out_mtxq.push_back(row);
+  }
+
+  vector<vector<int>> updated_a;
+  updated_a = in_mtxa;
+
+  for(int i=0; i<(n-1); i++){
+    //get first col of updated a mtx
+    vector<vector<int>> first_col_mtx;
+    GetColumns(updated_a, 1, first_col_mtx);
+    vector<int> first_col;
+    MtxToVec_vertical(first_col_mtx, first_col);
+
+    //pattern: norm 2 of a's first column
+    int norm2;
+    SquareAcc_vec* p1 = new SquareAcc_vec(ops, mn_name, first_col, norm2);
+    patterns.push_back(p1);
+    ops[norm2].sp_addr = dblks["Q"]->getElementSPAddr(i,i);
+
+    //pattern: copy first column to Q
+    vector<int> first_col_q;
+
+    vector<int> first_col1;
+    for(int ri=1; ri<first_col.size(); ri++){
+      first_col1.push_back(first_col[ri]);
+    }
+    Copy_vec* p2 = new Copy_vec(ops, mn_name, first_col1, first_col_q);
+    patterns.push_back(p2);
+    for(int ci=0; ci<first_col_q.size(); ci++){
+      ops[first_col_q[ci]].sp_addr = dblks["Q"]->getElementSPAddr(i+ci+1, i);
+    }
+
+    //pattern: household parameters
+    int diag;
+    int divider;
+    QRHouseholderPara* p3 = new QRHouseholderPara(ops, mn_name, norm2, updated_a[0][0], diag, divider);
+    patterns.push_back(p3);
+    ops[diag].sp_addr = dblks["Q"]->getElementSPAddr(i,i);
+
+    vector<int> divider_vec;
+    SToVec(divider, divider_vec, first_col_q.size());
+    vector<int> first_col_q_new;
+    Div_vec* p4 = new Div_vec(ops, mn_name, first_col_q, divider_vec, first_col_q_new);
+    patterns.push_back(p4);
+    for(int ci=0; ci<first_col_q_new.size(); ci++){
+      ops[first_col_q_new[ci]].sp_addr = dblks["Q"]->getElementSPAddr(i+ci+1,i);
+    }
+
+    vector<int> w;
+    w.push_back(diag);
+    for(int ci=0; ci<first_col_q_new.size(); ci++){
+      w.push_back(first_col_q_new[ci]);
+    }
+    //w is q col
+    for(int wi=0; wi<w.size(); wi++){
+      out_mtxq[wi+i].push_back(w[wi]);
+    }
+     
+    vector<vector<int>> cur_a;
+    GetSubMtx(updated_a, cur_a, 0, updated_a.size()-1, 1, updated_a[0].size()-1);
+
+    vector<vector<int>> new_a;
+    QRHouseholderMtxMul* p5 = new QRHouseholderMtxMul(ops, mn_name, w, cur_a, new_a);
+    patterns.push_back(p5);
+    for(int ai=0; ai<new_a.size(); ai++){
+      for(int aj=0; aj<new_a[0].size(); aj++){
+        ops[new_a[ai][aj]].sp_addr = dblks["A"]->getElementSPAddr(i+ai, i+aj+1);
+      }
+    }
+
+    vector<vector<int>> new_a_copy;
+    Copy_mtx* p6 = new Copy_mtx(ops, mn_name, new_a, new_a_copy);
+    patterns.push_back(p6);
+    for(int ai=0; ai<new_a.size(); ai++){
+       for(int aj=0; aj<new_a[0].size(); aj++){
+         ops[new_a_copy[ai][aj]].sp_addr = dblks["R"]->getElementSPAddr(i+ai, i+aj+1);
+      }
+    }
+
+    vector<int> r_row;
+    r_row.push_back(updated_a[0][0]);
+    for(int ri=0; ri<new_a_copy[0].size(); ri++){
+      r_row.push_back(new_a_copy[0][ri]);
+    }
+    out_mtxr.push_back(r_row);
+
+    updated_a.clear();
+    GetSubMtx(new_a_copy, updated_a, 1, new_a_copy.size()-1, 0, new_a_copy[0].size()-1);
+
+  }
+}
+
+void ComputationGraph::CP_QRCPL(const vector<vector<int>> &in_mtxa0, const vector<vector<int>> &in_mtxa, vector<vector<int>> &out_mtxt, vector<vector<int>> &out_mtxq, vector<vector<int>> &out_mtxr){
+  string cp = "CP: QRCPL";
+  cout << "in qrcpl" << endl;
+
+  int n = in_mtxa0.size();
+
+  for(int i=0; i<n; i++){
+    for(int j=0; j<n; j++){
+      ops[in_mtxa0[i][j]].sp_addr = dblks["R0"]->getElementSPAddr(i,j);
+      ops[in_mtxa0[i][j]].has_produced = true;
+    }
+  }
+  for(int i=0; i<n; i++){
+    for(int j=0; j<n; j++){
+      ops[in_mtxa[i][j]].sp_addr = dblks["R"]->getElementSPAddr(i,j);
+      ops[in_mtxa[i][j]].has_produced = true;
+    }
+  }
+
+  //initialize outq
+  for(int i=0; i<n; i++){
+    vector<int> row;
+    out_mtxq.push_back(row);
+  }
+
+  vector<vector<int>> updated_a;
+  updated_a = in_mtxa;
+
+  vector<vector<int>> updated_a0;
+  updated_a0 = in_mtxa0;
+
+  vector<int> out_vect;
+  for(int i=0; i<n; i++){
+    cout << endl << "i " << i << endl;
+    //get first column of a;
+    vector<vector<int>> first_a_col_mtx;
+    GetColumns(updated_a, 1, first_a_col_mtx);
+    vector<int> first_a_col;
+    MtxToVec_vertical(first_a_col_mtx, first_a_col);
+
+    vector<int> first_col;
+    first_col.push_back(updated_a0[0][0]);
+    for(int ri=0; ri<n; ri++){
+      first_col.push_back(first_a_col[ri]);
+    }
+
+    //get norm2
+    int norm2;
+    SquareAcc_vec* p1 = new SquareAcc_vec(ops,mn_name,first_col,norm2);
+    patterns.push_back(p1);
+    cout << "get norm" << endl;
+    ops[norm2].sp_addr = dblks["T"]->getElementSPAddr(0,i);
+    cout << "get norm" << endl;
+
+    vector<int> first_a_col_inq;
+    Copy_vec* p2 = new Copy_vec(ops,mn_name,first_a_col,first_a_col_inq);
+    patterns.push_back(p2);
+    for(int ri=0; ri<first_a_col_inq.size(); ri++){
+      ops[first_a_col_inq[ri]].sp_addr = dblks["Q"]->getElementSPAddr(ri,i);
+    }
+
+    int diag;
+    int divider;
+    QRHouseholderPara* p3 = new QRHouseholderPara(ops,mn_name,norm2,updated_a0[0][0],diag,divider);
+    patterns.push_back(p3);
+    ops[diag].sp_addr = dblks["T"]->getElementSPAddr(0,i);
+    out_vect.push_back(diag);
+
+    //get w
+    vector<int> diag_vec;
+    SToVec(diag,diag_vec,first_a_col_inq.size());
+    vector<int> w;
+    Div_vec* p4 = new Div_vec(ops,mn_name,first_a_col_inq,diag_vec,w);
+    patterns.push_back(p4);
+    for(int ri=0; ri<w.size(); ri++){
+      out_mtxq[ri].push_back(w[ri]);
+      ops[w[ri]].sp_addr = dblks["Q"]->getElementSPAddr(ri,i);
+    }
+
+    vector<int> out_mtxr_row;
+    if(i == n-1){
+      out_mtxr_row.push_back(updated_a0[0][0]);
+    }
+    else{
+      //update
+      //diag update a0
+      vector<int> diag_vec;
+      SToVec(diag,diag_vec,updated_a0[0].size()-1);
+      vector<int> a0_row;
+      GetRowAfterDiag(updated_a0, a0_row, 0);
+
+      vector<int> new_a0_row;
+      Mul_vec* p5 = new Mul_vec(ops,mn_name,diag_vec,a0_row,new_a0_row);
+      patterns.push_back(p5);
+      for(int ri=0; ri<new_a0_row.size(); ri++){
+	ops[new_a0_row[ri]].sp_addr = dblks["R0"]->getElementSPAddr(i,ri+i+1);
+      }
+      
+      out_mtxr_row.push_back(updated_a0[0][0]);
+      for(int ri=0; ri<new_a0_row.size(); ri++){
+	out_mtxr_row.push_back(new_a0_row[ri]);
+      }
+
+      vector<vector<int>> new_a0;
+      GetSubMtx(updated_a0,new_a0,1,updated_a0.size()-1,1,updated_a0[0].size()-1);
+      updated_a0.clear();
+      updated_a0 = new_a0;
+
+      //w udpate a
+      vector<vector<int>> cur_a;
+      GetSubMtx(updated_a,cur_a,0,updated_a.size()-1,1,updated_a[0].size()-1);
+      vector<vector<int>> new_a;
+      QRHouseholderMtxMul* p6 = new QRHouseholderMtxMul(ops,mn_name,w,cur_a,new_a);    
+      patterns.push_back(p6);
+      for(int ai=0; ai<new_a.size(); ai++){
+	for(int aj=0; aj<new_a[ai].size(); aj++){
+	  ops[new_a[ai][aj]].sp_addr = dblks["A"]->getElementSPAddr(ai,aj+i);
+	}
+      }
+
+      updated_a.clear();
+      Copy_mtx* p7 = new Copy_mtx(ops,mn_name,new_a,updated_a);
+      patterns.push_back(p7);
+      for(int ai=0; ai<updated_a.size(); ai++){
+	for(int aj=0; aj<updated_a[ai].size(); aj++){
+	  ops[updated_a[ai][aj]].sp_addr = dblks["R"]->getElementSPAddr(ai,aj+i);
+	}
+      }
+    }
+    out_mtxr.push_back(out_mtxr_row);
+  }
+  out_mtxt.push_back(out_vect);
+}
+
+void ComputationGraph::CP_QRUpdateDiag(const vector<vector<int>>& in_mtxt, const vector<vector<int>>& in_mtxa, vector<vector<int>> &out_mtxa){
+  string cp = "CP: QR update diag";
+
+  int m = in_mtxt.size();
+  int n = in_mtxt[0].size();
+
+  for(int i=0; i<m; i++){
+    for(int j=0; j<n; j++){
+      ops[in_mtxt[i][j]].sp_addr = dblks["T"]->getElementSPAddr(i,j);
+      ops[in_mtxt[i][j]].has_produced = true;
+    }
+  }
+  for(int i=0; i<m; i++){
+    for(int j=0; j<m; j++){
+      ops[in_mtxa[i][j]].sp_addr = dblks["A"]->getElementSPAddr(i,j);
+      ops[in_mtxa[i][j]].has_produced = true;
+    }
+  }
+
+  vector<vector<int>> cur_a = in_mtxa;
+  vector<vector<int>> next_a;
+  for(int j=0; j<n; j++){
+    for(int i=0; i<m; i++){
+      vector<int> t_vec;
+      SToVec(in_mtxt[i][j],t_vec,m);
+
+      vector<int> new_a_row;
+      Mul_vec* p1 = new Mul_vec(ops,mn_name,t_vec,cur_a[i],new_a_row);
+      patterns.push_back(p1);
+      for(int ai=0; ai<m; ai++){
+        ops[new_a_row[ai]].sp_addr = dblks["A"]->getElementSPAddr(i,ai);
+      }
+
+      next_a.push_back(new_a_row);
+    }
+    cur_a.clear();
+    cur_a = next_a;
+    if(j == n-1){
+      out_mtxa = next_a;
+    }
+    else{
+      next_a.clear();
+    }
+  }
+}
+
+void ComputationGraph::CP_QRUpdateTr(const vector<vector<int>>&in_mtxq, const vector<vector<int>>&in_mtxa, vector<vector<int>>&out_mtxr){
+  string cp = "CP: QR update triangular";
+
+  int n = in_mtxq.size();
+
+  for(int i=0; i<n; i++){
+    for(int j=0; j<=i; j++){
+      ops[in_mtxq[i][j]].sp_addr = dblks["Q"]->getElementSPAddr(i,j);
+      ops[in_mtxq[i][j]].has_produced = true;
+    }
+  }
+  for(int i=0; i<n; i++){
+    for(int j=0; j<n; j++){
+      ops[in_mtxa[i][j]].sp_addr = dblks["A"]->getElementSPAddr(i,j);
+      ops[in_mtxa[i][j]].has_produced = true;
+    }
+  }
+
+  vector<vector<int>> updated_a;
+  updated_a = in_mtxa;
+  for(int i=0; i<n; i++){
+    vector<vector<int>> q_col_mtx;
+    GetSubMtx(in_mtxq, q_col_mtx, i, in_mtxq.size()-1, i, i);
+    vector<int> w;
+    MtxToVec_vertical(q_col_mtx,w);
+
+    vector<vector<int>> new_a;
+    QRHouseholderMtxMul* p1 = new QRHouseholderMtxMul(ops,mn_name,w,updated_a,new_a);
+    patterns.push_back(p1);
+    for(int ai=0; ai<new_a.size(); ai++){
+      for(int aj=0; aj<new_a[0].size(); aj++){
+        ops[new_a[ai][aj]].sp_addr = dblks["Atemp"]->getElementSPAddr(ai+i,aj);
+      }
+    }
+
+    vector<vector<int>> new_a_copy;
+    Copy_mtx* p2 = new Copy_mtx(ops,mn_name,new_a,new_a_copy);
+    patterns.push_back(p2);
+    for(int ai=0; ai<new_a_copy.size(); ai++){
+      for(int aj=0; aj<new_a_copy[ai].size(); aj++){
+        ops[new_a_copy[ai][aj]].sp_addr = dblks["A"]->getElementSPAddr(ai+i,aj);
+      }
+    }
+
+    out_mtxr.push_back(new_a_copy[0]);
+
+    updated_a.clear();
+    for(int ai=1; ai<new_a_copy.size(); ai++){
+      updated_a.push_back(new_a_copy[ai]);
+    }
+
+  }
+}
+
+void ComputationGraph::CP_QRUpdate(const vector<vector<int>> &in_mtxq, const vector<vector<int>> &in_mtxa, vector<vector<int>> &out_mtxa){
+  string cp = "CP: QR update";
+
+  int n = in_mtxq.size();
+  for(int i=0; i<n; i++){
+    for(int j=0; j<n; j++){
+      ops[in_mtxq[i][j]].sp_addr = dblks["Q"]->getElementSPAddr(i,j);
+      ops[in_mtxq[i][j]].has_produced = true;
+    }
+  }
+  for(int i=0; i<n; i++){
+    for(int j=0; j<n; j++){
+      ops[in_mtxa[i][j]].sp_addr = dblks["A"]->getElementSPAddr(i,j);
+      ops[in_mtxa[i][j]].has_produced = true;
+    }
+  }
+  vector<vector<int>> updated_a;
+  updated_a = in_mtxa;
+  for(int i=0; i<n; i++){
+    vector<vector<int>> q_col_mtx;
+    GetSubMtx(in_mtxq, q_col_mtx, 0, in_mtxq.size()-1, i, i);
+    vector<int> w;
+    MtxToVec_vertical(q_col_mtx,w);
+
+    vector<vector<int>> new_a;
+    QRHouseholderMtxMul* p1 = new QRHouseholderMtxMul(ops,mn_name,w,updated_a,new_a);
+    patterns.push_back(p1);
+    for(int ai=0; ai<new_a.size(); ai++){
+      for(int aj=0; aj<new_a[0].size(); aj++){
+        ops[new_a[ai][aj]].sp_addr = dblks["Atemp"]->getElementSPAddr(ai+i,aj);
+      }
+    }
+
+    vector<vector<int>> new_a_copy;
+    Copy_mtx* p2 = new Copy_mtx(ops,mn_name,new_a,new_a_copy);
+    patterns.push_back(p2);
+    for(int ai=0; ai<new_a_copy.size(); ai++){
+      for(int aj=0; aj<new_a_copy[ai].size(); aj++){
+        ops[new_a_copy[ai][aj]].sp_addr = dblks["A"]->getElementSPAddr(ai+i,aj);
+      }
+    }
+
+    updated_a.clear();
+    updated_a = new_a_copy;
+  }
+  out_mtxa = updated_a;
+}
 /*
    void ComputationGraph::CP_NormalizeMtx(const vector<vector<int>> &in_mtx, vector<vector<int>> &out_mtx){
    string cp = "CP: normalize matrix";

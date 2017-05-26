@@ -85,7 +85,7 @@ void readConfig(){
     stringstream ss(line);
     string token;
     getline(ss, token, ',');
-    Memory::num_bank = atoi(token.c_str());
+    int num_bank = atoi(token.c_str());
 
     getline(ss, token, ',');
     int size = atoi(token.c_str())/4;
@@ -93,8 +93,10 @@ void readConfig(){
     getline(ss, token, ',');
     int port = atoi(token.c_str());
 
+    Memory::num_bank = num_bank*port;
+    int real_size = size/port;
     for(int i=0; i<Memory::num_bank; i++){
-      MemBank m = {size, port};
+      MemBank m = {real_size, 1};
       Memory::membanks.push_back(m);
     }
   }

@@ -19,6 +19,7 @@ class ComputationGraph{
     ~ComputationGraph();
 
     void CP_Load(int m, int n, vector<vector<int>> &out_mtx);
+    void CP_LoadVec(int m, vector<int> &out_vec);
     void CP_Store(const vector<vector<int>> &in_mtx);
 
     void CP_MtxMul(const vector<vector<int>> &in_mtx1, const vector<vector<int>> &in_mtx2, vector<vector<int>> &out_mtx);
@@ -40,6 +41,13 @@ class ComputationGraph{
     void CP_LU(const vector<vector<int>> &in_mtxa, vector<vector<int>> &out_mtxl, vector<vector<int>> &out_mtxu);
     void CP_LUCPL(const vector<vector<int>> &in_mtxa, const vector<vector<int>> &in_mtxu, vector<vector<int>> &out_mtxl);
     void CP_TRS(const vector<vector<int>> &in_mtxa, const vector<vector<int>> &in_mtxb, vector<vector<int>>& in_mtxx);
+
+    void CP_HouseholderMtxMul(const vector<int>& w, const vector<vector<int>>& in_mtx, vector<vector<int>>& out_mtx);
+    void CP_QR(const vector<vector<int>> &in_mtxa, vector<vector<int>> &out_mtxq, vector<vector<int>> &out_mtxr);
+    void CP_QRCPL(const vector<vector<int>> &in_mtxa0, const vector<vector<int>> &in_mtxa, vector<vector<int>> &out_mtxt, vector<vector<int>> &out_mtxq, vector<vector<int>> &out_mtxr);
+    void CP_QRUpdateDiag(const vector<vector<int>> &in_mtxt, const vector<vector<int>> &in_mtxa, vector<vector<int>> &out_mtxa);
+    void CP_QRUpdateTr(const vector<vector<int>> &in_mtxq, const vector<vector<int>> &in_mtxa, vector<vector<int>> &out_mtxr);
+    void CP_QRUpdate(const vector<vector<int>> &in_mtxq, const vector<vector<int>> &in_mtxa, vector<vector<int>> &out_mtxa);
 
     void PrintOps();
     void PrintTiles();

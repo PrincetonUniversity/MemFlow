@@ -15,7 +15,7 @@ void DataArray::genDblks(int in_blk_dimi, int in_blk_dimj){
   for(int blk_i=0; blk_i<blk_m; blk_i++){
     for(int blk_j=0; blk_j<blk_n; blk_j++){
       DataBlock db(dblks.size(), name, name, in_blk_dimi, in_blk_dimj, blk_i, blk_j);
-      db.setSPAddr();
+      //db.setSPAddr();
       dblks.push_back(db);
     }
   }

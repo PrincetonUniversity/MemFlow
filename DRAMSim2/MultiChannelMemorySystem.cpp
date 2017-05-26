@@ -107,8 +107,10 @@ void MultiChannelMemorySystem::setCPUClockSpeed(uint64_t cpuClkFreqHz)
 {
 
 	uint64_t dramsimClkFreqHz = (uint64_t)(1.0/(tCK*1e-9));
+	DEBUG("DRAM Clock Freq " << dramsimClkFreqHz);
 	clockDomainCrosser.clock1 = dramsimClkFreqHz; 
 	clockDomainCrosser.clock2 = (cpuClkFreqHz == 0) ? dramsimClkFreqHz : cpuClkFreqHz; 
+	DEBUG("CPU Clock Freq " << clockDomainCrosser.clock2);
 }
 
 bool fileExists(string &path)
@@ -367,6 +369,7 @@ MultiChannelMemorySystem::~MultiChannelMemorySystem()
 		visDataOut.close();
 	}
 }
+
 void MultiChannelMemorySystem::update()
 {
 	clockDomainCrosser.update(); 

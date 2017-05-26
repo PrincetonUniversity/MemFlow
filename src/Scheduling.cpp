@@ -56,23 +56,38 @@ int TileScheduling::Executing_cbs(){
   int cycle = -1;
   while(!finished){
     cycle++;
-    //cout << endl << "cycle " << cycle << endl;
+    cout << endl << "cycle " << cycle << endl;
     
     finished = true;
     for(auto &cb_ctg: cb_events){
-      for(auto &cb: cb_ctg.second){
+      for(auto cb_it=cb_ctg.second.begin(); cb_it!=cb_ctg.second.end(); cb_it++){
+	int cb_idx = cb_it-cb_ctg.second.begin();
+	CBEvents& cb = *cb_it;
 	//cb_event: cb
 	//cout << endl << "cb " << cb_ctg.first << endl;
 
 	for(int j=cb.num_stage-1; j>=0; j--){
-	  //cout << "stage " << j << endl;
+	  if(cb_idx == 0){
+	    cout << "stage " << j << endl;
+	  }
+	  
 	  //stage j
 	  //reason 1 to stall: still read or write
 	  cb.stage_events[j].stall = (!cb.stage_events[j].ops.empty());
+	  if(cb.stage_events[j].stall){
+	    if(cb_idx == 0){
+	      cout << "  stage " << j << " is stalled" << endl;
+	    }
+	  }
 
 	  //reason 2 to stall: next stage is stalled
 	  if((j<(cb.num_stage-1)) && (cb.stage_events[j+1].stall)){
 	    cb.stage_events[j].stall = true;
+	  }
+	  if(cb.stage_events[j].stall){
+	    if(cb_idx == 0){
+	      cout << "  stage " << j << " is stalled" << endl;
+	    }
 	  }
 
 	  //cout << "ops on queue front " << endl;
@@ -83,23 +98,37 @@ int TileScheduling::Executing_cbs(){
 	    //cout << endl;
 	  //}
 
+	  //reason 3 to stall: data is not ready
+	  if(!cb.stage_events[j].stall){
+	    if(!cb.stage_events[j].q_ops.empty()){
+	      set<event> ops_candi = cb.stage_events[j].q_ops.front();
+	      for(auto &e: ops_candi){
+	        if(cb_idx == 0){
+		  cout << "candi op " << e.op << endl;
+		}
+		if((e.r_or_w == 'r') && !macro->p_cg->ops[e.op].has_produced){
+		  if(cb_idx == 0){
+		    cout << "is not produced " << endl;
+		  }
+		  cb.stage_events[j].stall = true;
+		  cb.stage_events[j].produced_out = false;
+		  if(cb_idx == 0){
+		    cout << "  stage " << j << " is stalled " << endl;
+		  }
+		  //cout << "has dep op not produced yet" << endl;
+		  break;
+		}
+	      }
+	    }
+	  }
+
+	  //not stall: fetch new data
 	  if(!cb.stage_events[j].stall){
 	    if(j == 0){
-	      if(!cb.stage_events[j].q_ops.empty()){
-		//cout << "q_ops not empty" << endl;
-	        set<event> ops_candi = cb.stage_events[j].q_ops.front();
-		for(auto &e: ops_candi){
-		  if((e.r_or_w == 'r') && !macro->p_cg->ops[e.op].has_produced){
-		    cb.stage_events[j].stall = true;
-		    //cout << "has dep op not produced yet" << endl;
-		    break;
-		  }
-		}
-		if(!cb.stage_events[j].stall){
+	        if(!cb.stage_events[j].q_ops.empty()){
 		  cb.stage_events[j].Dequeue();
 		  cb.stage_events[j].produced_out = false;
 		}
-	      }
 	    }
 	    else{
 	      if(cb.stage_events[j-1].produced_out){
@@ -110,6 +139,9 @@ int TileScheduling::Executing_cbs(){
 		else{
 		  cb.stage_events[j].produced_out = true;
 		}
+	      }
+	      else{
+	        cb.stage_events[j].produced_out = false;
 	      }
 	    }
 	  }
@@ -149,6 +181,9 @@ int TileScheduling::Executing_cbs(){
 
 	  if(!finished_events.empty() && cb.stage_events[j].ops.empty()){
 	    cb.stage_events[j].produced_out = true;
+	    //if(cb_idx == 0){
+	      //cout << "produced out true " << endl;
+	    //}
 	  }
 
 	  if(j == (cb.num_stage-1)){
@@ -268,8 +303,8 @@ void TileScheduling::Scheduling_pipe_debug(){
     }
   }
 
-  for(auto &cb: opti_para.num_cb[macro->name]){
-    for(int i=0; i<cb.second; i++){
+  for(auto &cb: opti_para.cbs[macro->name]){
+    for(int i=0; i<cb.second.num_cb; i++){
       CBEvents ce(ComputeBlockLib::cbs[macro->name][cb.first]->latency);
       cb_events[cb.first].push_back(ce);
     }
@@ -279,11 +314,13 @@ void TileScheduling::Scheduling_pipe_debug(){
   for(auto p=macro->p_cg->patterns.begin(); p!=macro->p_cg->patterns.end(); p++){
     //cb name: p->cb->name
     if(((*p)->name != "load") && ((*p)->name != "store")){
-      int num_cb = opti_para.num_cb[macro->name][(*p)->name];
+      int num_cb = opti_para.cbs[macro->name][(*p)->name].num_cb;
       int num_subblk = (*p)->tiles_idx.size()/num_cb;
 
-      for(int i=0; i<=num_subblk; i++){
+      for(int i=0; i<num_subblk; i++){
+	cout << endl << "subblk " << i << endl;
 	for(int cb=0; cb<num_cb; cb++){
+	  cout << endl << "cb " << cb << endl;
 	  int tile_idx = i*num_cb+cb;
 	  
 	  if(tile_idx < (*p)->tiles_idx.size()){
@@ -308,6 +345,11 @@ void TileScheduling::Scheduling_pipe_debug(){
 
 	    for(auto &e: sorted_ops){
 	      cb_events[(*p)->name][cb].stage_events[e.first].Enqueue(e.second);
+	      cout << "stage " << e.first << " ";
+	      for(auto it=e.second.begin(); it!=e.second.end(); it++){
+		cout << it->r_or_w << " " << it->op << " ";
+	      }
+	      cout << endl;
 	    }
 
 	  }

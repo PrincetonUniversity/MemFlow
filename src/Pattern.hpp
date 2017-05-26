@@ -105,6 +105,13 @@ class Copy_vec: public Pattern{
     void TileGen(vector<Tile> &tiles, vector<Operation> &ops);
 };
 
+class Copy_mtx: public Pattern{
+  public:
+    Copy_mtx(vector<Operation> &ops, string &in_mn_name, const vector<vector<int>> &in_mtx, vector<vector<int>> &out_mtx);
+    ~Copy_mtx(){};
+    void TileGen(vector<Tile> &tiles, vector<Operation> &ops);
+};
+
 class ColSum: public Pattern{
   public:
     ColSum(vector<Operation> &ops, string &in_mn_name, const vector<vector<int>> &in_mtx, vector<int> &out_vec);
@@ -117,9 +124,30 @@ class Div_vec: public Pattern{
     void TileGen(vector<Tile> &tiles, vector<Operation> &ops);
 };
 
+class Mul_vec: public Pattern{
+  public:
+    Mul_vec(vector<Operation> &ops, string &in_mn_name, const vector<int> &in_vec1, const vector<int> &in_vec2, vector<int> &out_vec);
+    ~Mul_vec(){};
+    void TileGen(vector<Tile> &tiles, vector<Operation> &ops);
+};
+
 class Div_mtx: public Pattern{
   public:
     Div_mtx(vector<Operation> &ops, string &in_mn_name, const vector<vector<int>> &in_mtx1, const vector<vector<int>> &in_mtx2, vector<vector<int>> &out_mtx);
+};
+
+class QRHouseholderPara: public Pattern{
+  public:
+    QRHouseholderPara(vector<Operation> &ops, string &in_mn_name, const int& norm2, const int& x1, int& diag, int& divider);
+    ~QRHouseholderPara(){};
+    void TileGen(vector<Tile> &tiles, vector<Operation>& ops);
+};
+
+class QRHouseholderMtxMul: public Pattern{
+  public:
+    QRHouseholderMtxMul(vector<Operation>&ops, string &in_mn_name, const vector<int>&w, const vector<vector<int>>&in_mtx1, vector<vector<int>>& out_mtx);
+    ~QRHouseholderMtxMul(){};
+    void TileGen(vector<Tile> &tiles, vector<Operation>& ops);
 };
 
 class Sub_mtx: public Pattern{
@@ -130,6 +158,8 @@ class Sub_mtx: public Pattern{
 class SquareAcc_vec: public Pattern{
   public:
     SquareAcc_vec(vector<Operation> &ops, string &in_mn_name, const vector<int> &in_vec, int &out_s);
+    ~SquareAcc_vec(){};
+    void TileGen(vector<Tile> &tiles, vector<Operation>& ops);
 };
 
 class SquareAcc_mtx: public Pattern{

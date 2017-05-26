@@ -123,6 +123,33 @@ opti/fast:
 	$(MAKE) -f CMakeFiles/opti.dir/build.make CMakeFiles/opti.dir/build
 .PHONY : opti/fast
 
+src/Application.o: src/Application.cpp.o
+
+.PHONY : src/Application.o
+
+# target to build an object file
+src/Application.cpp.o:
+	$(MAKE) -f CMakeFiles/opti.dir/build.make CMakeFiles/opti.dir/src/Application.cpp.o
+.PHONY : src/Application.cpp.o
+
+src/Application.i: src/Application.cpp.i
+
+.PHONY : src/Application.i
+
+# target to preprocess a source file
+src/Application.cpp.i:
+	$(MAKE) -f CMakeFiles/opti.dir/build.make CMakeFiles/opti.dir/src/Application.cpp.i
+.PHONY : src/Application.cpp.i
+
+src/Application.s: src/Application.cpp.s
+
+.PHONY : src/Application.s
+
+# target to generate assembly for a file
+src/Application.cpp.s:
+	$(MAKE) -f CMakeFiles/opti.dir/build.make CMakeFiles/opti.dir/src/Application.cpp.s
+.PHONY : src/Application.cpp.s
+
 src/CGScheduling.o: src/CGScheduling.cpp.o
 
 .PHONY : src/CGScheduling.o
@@ -510,6 +537,9 @@ help:
 	@echo "... rebuild_cache"
 	@echo "... edit_cache"
 	@echo "... opti"
+	@echo "... src/Application.o"
+	@echo "... src/Application.i"
+	@echo "... src/Application.s"
 	@echo "... src/CGScheduling.o"
 	@echo "... src/CGScheduling.i"
 	@echo "... src/CGScheduling.s"

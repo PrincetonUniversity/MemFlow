@@ -24,9 +24,11 @@ namespace FunctionUnitLib
 	const struct FunctionUnit LOAD = {"load", 4};
 	const struct FunctionUnit STORE = {"store", 4};
 	const struct FunctionUnit COPY = {"copy", 1};
+	//const struct FunctionUnit ADD = {"add", 10};
 	const struct FunctionUnit ADD = {"add", 1};
 	const struct FunctionUnit SUB = {"sub", 1};
-	const struct FunctionUnit MUL = {"mul", 3};
+	//const struct FunctionUnit MUL = {"mul", 6};
+	const struct FunctionUnit MUL = {"mul", 1};
 	const struct FunctionUnit DIV = {"divide", 3};
 	const struct FunctionUnit ROOT = {"root", 3};
 };

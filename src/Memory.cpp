@@ -6,6 +6,36 @@
 
 using namespace std;
 
+SPRegion::SPRegion(string in_name, int in_start_bank, int in_end_bank){
+  name = in_name;
+  start_bank = in_start_bank;
+  end_bank = in_end_bank;
+
+  farest_next_use = 0;
+  next_base_2replace = 0;
+}
+
+void SPRegion::setupSPRegion(int in_num_blks){
+  num_blks = in_num_blks;
+  
+  for(int i=0; i<num_blks; i++){
+    dblk_idx.push_back(-1);
+    next_empty.push(i);
+  }
+}
+
+void SPRegion::updateNextBase2Replace(int changed_base){
+  //new next use
+  int idx = dblk_idx[changed_base];
+  if(!data_arrays[name]->dblks[idx].next_use_t.empty()){
+    int next_use = data_arrays[name]->dblks[idx].next_use_t.front();
+    if(next_use > farest_next_use){
+      next_base_2replace = changed_base;
+      farest_next_use = next_use;
+    }
+  }
+}
+
 MemoryTrack::MemoryTrack(){
   num_bank = Memory::num_bank;
   membanks = Memory::membanks;
@@ -232,12 +262,12 @@ void MemoryTrack::getOptiPara(Parameters* in_opti_para){
 void MemoryTrack::Slice2Dblks(){
   cout << "in dblk slicing" << endl;
   int bank_start = 0;
-  for(auto &i: opti_para->num_bank){
-    sp_regions[i.first] = {bank_start, bank_start+i.second-1, 0};
-    bank_start += i.second;
+  for(auto &i: opti_para->dblks){
+    sp_regions[i.first] = SPRegion(i.first, bank_start, bank_start+i.second.num_bank-1);
+    bank_start += i.second.num_bank;
 
-    blk_interval[i.first] = (opti_para->blk_size[i.first]%i.second==0)?opti_para->blk_size[i.first]/i.second: opti_para->blk_size[i.first]/i.second+1;
-    sp_regions[i.first].num_blks = Memory::membanks[0].size/blk_interval[i.first];
+    blk_interval[i.first] = i.second.interval;
+    sp_regions[i.first].setupSPRegion(i.second.num_blk_mem);
   }
 }
 
@@ -245,9 +275,9 @@ void MemoryTrack::Slice2Dblks(){
 void MemoryTrack::Slice2Dblks_debug(){
   cout << "in dblk slicing" << endl;
   int bank_start = 0;
-  for(auto &i: opti_para->num_bank){
-    sp_regions[i.first] = {bank_start, bank_start+i.second-1, 1};
-    bank_start += i.second;
+  for(auto &i: opti_para->dblks){
+    sp_regions[i.first] = SPRegion(i.first, bank_start, bank_start+i.second.num_bank-1);
+    bank_start += i.second.num_bank;
   }
 }
 /*
@@ -335,13 +365,9 @@ DblkAddr MemoryTrack::getDblkAddr(string mtx_name, int blk_idx){
 
 void MemoryTrack::PrintInfo(){
   cout << endl << "SRAM parameters: " << endl;
-  cout << "Port allocation: " << endl;
-  for(auto &i: opti_para->num_port){
-    cout << "    #ports for " << i.first << ": " << i.second << endl;
-  }
   cout << "Bank allocation: " << endl;
   for(auto &i: sp_regions){
-    cout << "    #banks for " << i.first << ": " << opti_para->num_bank[i.first] << "(" << i.second.start_bank << "-" << i.second.end_bank << ")" << endl;
+    cout << "    #banks for " << i.first << ": " << opti_para->dblks[i.first].num_bank << "(" << i.second.start_bank << "-" << i.second.end_bank << ")" << endl;
     cout << "      #blks can be allocated: " << i.second.num_blks << endl;
   }
 }

@@ -239,7 +239,7 @@ Load_mtx::~Load_mtx(){
 }
 
 void Load_mtx::TileGen(vector<Tile> &tiles, vector<Operation> &ops){
-  int num_tile = (pus.size()%cb->width==0)?pus.size()/cb->width:pus.size()/cb->width+1;
+  int num_tile = pus.size();
 
   int tile_idx_start = tiles.size();
   for(int i=0; i<num_tile; i++){
@@ -253,7 +253,7 @@ void Load_mtx::TileGen(vector<Tile> &tiles, vector<Operation> &ops){
 
   for(vector<PatternUnit>::iterator pu=pus.begin(); pu!=pus.end(); pu++){
     int idx = pu-pus.begin();
-    int tile_idx = tile_idx_start + int(idx/cb->width);
+    int tile_idx = tile_idx_start + idx;
     //add pu to the tiles[tile_idx];
     for(vector<int>::iterator op=pu->ops.begin(); op!=pu->ops.end(); op++){
       tiles[tile_idx].ops.push_back(*op);
@@ -421,6 +421,7 @@ void Load_mtx::MacroNodeGen_idxorder(vector<MacroNode*> &mns){
       //cout << "real tile idx " << *t << ": " << "template tile idx " << tile_idx_mn << endl;
     }
   }
+	cout << "sp addr abnk " << ops[new_a[ai][aj]].sp_addr[0] << endl;
   else{
     for(vector<int>::iterator t=tiles_idx.begin(); t!=tiles_idx.end(); t++){
       int tile_idx = t-tiles_idx.begin();
@@ -499,7 +500,7 @@ Store_mtx::~Store_mtx(){
 }
 
 void Store_mtx::TileGen(vector<Tile> &tiles, vector<Operation> &ops){
-  int num_tile = (pus.size()%cb->width==0)?pus.size()/cb->width:pus.size()/cb->width+1;
+  int num_tile = pus.size();
 
   int tile_idx_start = tiles.size();
   for(int i=0; i<num_tile; i++){
@@ -513,7 +514,7 @@ void Store_mtx::TileGen(vector<Tile> &tiles, vector<Operation> &ops){
 
   for(vector<PatternUnit>::iterator pu=pus.begin(); pu!=pus.end(); pu++){
     int idx = pu-pus.begin();
-    int tile_idx = tile_idx_start + int(idx/cb->width);
+    int tile_idx = tile_idx_start + idx;
     //add pu to the tiles[tile_idx];
     for(vector<int>::iterator op=pu->ops.begin(); op!=pu->ops.end(); op++){
       tiles[tile_idx].ops.push_back(*op);
@@ -556,7 +557,7 @@ Copy_vec::Copy_vec(vector<Operation> &ops, string &in_mn_name, const vector<int>
 }
 
 void Copy_vec::TileGen(vector<Tile> &tiles, vector<Operation> &ops){
-  int num_tile = (pus.size()%cb->width==0)?pus.size()/cb->width:pus.size()/cb->width+1;
+  int num_tile = pus.size();
 
   int tile_idx_start = tiles.size();
   for(int i=0; i<num_tile; i++){
@@ -570,7 +571,7 @@ void Copy_vec::TileGen(vector<Tile> &tiles, vector<Operation> &ops){
 
   for(vector<PatternUnit>::iterator pu=pus.begin(); pu!=pus.end(); pu++){
     int idx = pu-pus.begin();
-    int tile_idx = tile_idx_start + int(idx/cb->width);
+    int tile_idx = tile_idx_start + idx;
     //add pu to the tiles[tile_idx];
     for(vector<int>::iterator op=pu->ops.begin(); op!=pu->ops.end(); op++){
       tiles[tile_idx].ops.push_back(*op);
@@ -578,6 +579,61 @@ void Copy_vec::TileGen(vector<Tile> &tiles, vector<Operation> &ops){
     }
   }
 }
+
+Copy_mtx::Copy_mtx(vector<Operation> &ops, string &in_mn_name, const vector<vector<int>> &in_mtx, vector<vector<int>> &out_mtx){
+  mn_name = in_mn_name;
+
+  int pre_idx = ops.size()-1;
+
+  for(int i=0; i<in_mtx.size(); i++){
+    vector<int> out_row;
+    for(int j=0; j<in_mtx[i].size(); j++){
+      PatternUnit pu;
+
+      pre_idx++;
+      Operation op;
+      op.idx = pre_idx;
+      op.fu = FunctionUnitLib::COPY;
+      op.in.push_back(in_mtx[i][j]);
+      ops.push_back(op);
+      pu.ops.push_back(op.idx);
+      out_row.push_back(op.idx);
+
+      pus.push_back(pu);
+    }
+    out_mtx.push_back(out_row);
+  }
+
+  name = "copy";
+  description = "Copy vector to another SRAM address";
+
+  cb = ComputeBlockLib::cbs[mn_name][name];
+}
+
+void Copy_mtx::TileGen(vector<Tile> &tiles, vector<Operation> &ops){
+  int num_tile = pus.size();
+
+  int tile_idx_start = tiles.size();
+  for(int i=0; i<num_tile; i++){
+    Tile tile(cb);
+    tile.latency = cb->latency;
+    tile.pattern_name = name;
+    tile.mn_name = mn_name;
+    tiles.push_back(tile);
+    tiles_idx.push_back(tiles.size()-1);
+  }
+
+  for(vector<PatternUnit>::iterator pu=pus.begin(); pu!=pus.end(); pu++){
+    int idx = pu-pus.begin();
+    int tile_idx = tile_idx_start + idx;
+    //add pu to the tiles[tile_idx];
+    for(vector<int>::iterator op=pu->ops.begin(); op!=pu->ops.end(); op++){
+      tiles[tile_idx].ops.push_back(*op);
+      ops[*op].tile = tile_idx;
+    }
+  }
+}
+
 
 /*
 void Store_mtx::MacroNodeGen(int mn_dimi, int mn_dimj, int mn_diml){
@@ -772,7 +828,7 @@ MtxMul::MtxMul(vector<Operation> &ops, string &in_mn_name, const vector<vector<i
     out_mtx.push_back(out_mtx_row);
   }
 
-  name = "mul_acc";
+  name = "acc_mul";
 
   cb = ComputeBlockLib::cbs[mn_name][name];	
 
@@ -792,7 +848,7 @@ MtxMul::~MtxMul(){
 
 void MtxMul::TileGen(vector<Tile> &tiles, vector<Operation> &ops){
   //initialize tiles
-  int num_tile_row = ((m*n)%cb->width == 0)? (m*n)/cb->width: (m*n)/cb->width+1;
+  int num_tile_row = m*n;
   int num_tile_col = (k%cb->stage == 0)? k/cb->stage: k/cb->stage+1;
 
   int tile_idx_start = tiles.size();
@@ -818,7 +874,7 @@ void MtxMul::TileGen(vector<Tile> &tiles, vector<Operation> &ops){
     int idx = pu-pus.begin();
     int col_idx = idx/k;
     int row_idx = idx-col_idx*k;
-    int tile_idx = tile_idx_start + int(row_idx/cb->stage)*num_tile_row + int(col_idx/cb->width);
+    int tile_idx = tile_idx_start + int(row_idx/cb->stage)*num_tile_row + col_idx;
     //add pu to the tiles[tile_idx];
     for(vector<int>::iterator op=pu->ops.begin(); op!=pu->ops.end(); op++){
       tiles[tile_idx].ops.push_back(*op);
@@ -1334,7 +1390,7 @@ SuborAddMtxMul::SuborAddMtxMul(bool is_add, vector<Operation> &ops, string &in_m
   else{
     name = "sub_mul";
   }
-  cb = ComputeBlockLib::cbs[mn_name][name];	
+  cb = ComputeBlockLib::cbs[mn_name][name];
 
   m = in_mtx1.size();
   k = in_mtx1[0].size();
@@ -1343,8 +1399,8 @@ SuborAddMtxMul::SuborAddMtxMul(bool is_add, vector<Operation> &ops, string &in_m
 
 void SuborAddMtxMul::TileGen(vector<Tile> &tiles, vector<Operation> &ops){
   //initialize tiles
-  cout << "in mtxmul tilge gen " << endl;
-  int num_tile_row = ((m*n)%cb->width == 0)? (m*n)/cb->width: (m*n)/cb->width+1;
+
+  int num_tile_row = m*n;
   int num_tile_col = (k%cb->stage == 0)? k/cb->stage: k/cb->stage+1;
 
   int tile_idx_start = tiles.size();
@@ -1370,7 +1426,7 @@ void SuborAddMtxMul::TileGen(vector<Tile> &tiles, vector<Operation> &ops){
     int idx = pu-pus.begin();
     int col_idx = idx/k;
     int row_idx = idx-col_idx*k;
-    int tile_idx = tile_idx_start + int(row_idx/cb->stage)*num_tile_row + int(col_idx/cb->width);
+    int tile_idx = tile_idx_start + int(row_idx/cb->stage)*num_tile_row + col_idx;
     //add pu to the tiles[tile_idx];
     for(vector<int>::iterator op=pu->ops.begin(); op!=pu->ops.end(); op++){
       tiles[tile_idx].ops.push_back(*op);
@@ -1451,7 +1507,7 @@ Div_vec::Div_vec(vector<Operation> &ops, string &in_mn_name, const vector<int> &
 }
 
 void Div_vec::TileGen(vector<Tile> &tiles, vector<Operation> &ops){
-  int num_tile = (pus.size()%cb->width==0)?pus.size()/cb->width:pus.size()/cb->width+1;
+  int num_tile = pus.size();
 
   int tile_idx_start = tiles.size();
   for(int i=0; i<num_tile; i++){
@@ -1465,7 +1521,57 @@ void Div_vec::TileGen(vector<Tile> &tiles, vector<Operation> &ops){
 
   for(vector<PatternUnit>::iterator pu=pus.begin(); pu!=pus.end(); pu++){
     int idx = pu-pus.begin();
-    int tile_idx = tile_idx_start + int(idx/cb->width);
+    int tile_idx = tile_idx_start + idx;
+    //add pu to the tiles[tile_idx];
+    for(vector<int>::iterator op=pu->ops.begin(); op!=pu->ops.end(); op++){
+      tiles[tile_idx].ops.push_back(*op);
+      ops[*op].tile = tile_idx;
+    }
+  }
+}
+
+Mul_vec::Mul_vec(vector<Operation> &ops, string &in_mn_name, const vector<int> &in_vec1, const vector<int> &in_vec2, vector<int> &out_vec){
+  mn_name = in_mn_name;
+
+  int pre_idx = ops.size()-1;
+
+  for(size_t i=0; i<in_vec1.size(); i++){
+    PatternUnit pu;
+
+    pre_idx++;
+    Operation op;
+    op.idx = pre_idx;
+    op.fu = FunctionUnitLib::MUL;
+    op.in.push_back(in_vec1[i]);
+    op.in.push_back(in_vec2[i]);
+    ops.push_back(op);
+    pu.ops.push_back(op.idx);
+    out_vec.push_back(op.idx);
+
+    pus.push_back(pu);
+  }
+
+  name = "mul";
+
+  cb = ComputeBlockLib::cbs[mn_name][name];
+}
+
+void Mul_vec::TileGen(vector<Tile> &tiles, vector<Operation> &ops){
+  int num_tile = pus.size();
+
+  int tile_idx_start = tiles.size();
+  for(int i=0; i<num_tile; i++){
+    Tile tile(cb);
+    tile.latency = cb->latency;
+    tile.pattern_name = name;
+    tile.mn_name = mn_name;
+    tiles.push_back(tile);
+    tiles_idx.push_back(tiles.size()-1);
+  }
+
+  for(vector<PatternUnit>::iterator pu=pus.begin(); pu!=pus.end(); pu++){
+    int idx = pu-pus.begin();
+    int tile_idx = tile_idx_start + idx;
     //add pu to the tiles[tile_idx];
     for(vector<int>::iterator op=pu->ops.begin(); op!=pu->ops.end(); op++){
       tiles[tile_idx].ops.push_back(*op);
@@ -1505,6 +1611,185 @@ Div_mtx::Div_mtx(vector<Operation> &ops, string &in_mn_name, const vector<vector
   cb = ComputeBlockLib::cbs[mn_name][name];
 }
 
+QRHouseholderPara::QRHouseholderPara(vector<Operation> &ops, string& in_mn_name, const int& norm2, const int& x1, int& diag, int& divider){
+  mn_name = in_mn_name;
+  int pre_idx = ops.size()-1;
+
+  PatternUnit pu;
+  //||x||
+  pre_idx++;
+  Operation op1;
+  op1.idx = pre_idx;
+  op1.fu = FunctionUnitLib::ROOT;
+  op1.in.push_back(norm2);
+  ops.push_back(op1);
+  pu.ops.push_back(op1.idx);
+
+  //u1
+  pre_idx++;
+  Operation op2;
+  op2.idx = pre_idx;
+  op2.fu = FunctionUnitLib::ADD;
+  op2.in.push_back(op1.idx);
+  op2.in.push_back(x1);
+  ops.push_back(op2);
+  pu.ops.push_back(op2.idx);
+
+  //u1/||x||
+  pre_idx++;
+  Operation op3;
+  op3.idx = pre_idx;
+  op3.fu = FunctionUnitLib::DIV;
+  op3.in.push_back(op2.idx);
+  op3.in.push_back(op1.idx);
+  ops.push_back(op3);
+  pu.ops.push_back(op3.idx);
+
+  //diag
+  pre_idx++;
+  Operation op4;
+  op4.idx = pre_idx;
+  op4.fu = FunctionUnitLib::ROOT;
+  op4.in.push_back(op3.idx);
+  ops.push_back(op4);
+  pu.ops.push_back(op4.idx);
+  diag = op4.idx;
+
+  //u1*||x||
+  pre_idx++;
+  Operation op5;
+  op5.idx = pre_idx;
+  op5.fu = FunctionUnitLib::MUL;
+  op5.in.push_back(op2.idx);
+  op5.in.push_back(op1.idx);
+  ops.push_back(op5);
+  pu.ops.push_back(op5.idx);
+
+  //divider
+  pre_idx++;
+  Operation op6;
+  op6.idx = pre_idx;
+  op6.fu = FunctionUnitLib::ROOT;
+  op6.in.push_back(op5.idx);
+  ops.push_back(op6);
+  pu.ops.push_back(op6.idx);
+  divider = op6.idx;
+
+  pus.push_back(pu);
+
+  name = "qr_householder_para";
+  cb = ComputeBlockLib::cbs[mn_name][name];
+}
+
+void QRHouseholderPara::TileGen(vector<Tile> &tiles, vector<Operation>& ops){
+  Tile tile(cb);
+  tile.pattern_name = name;
+  tile.mn_name = mn_name;
+  tile.latency = cb->latency;
+  tiles.push_back(tile);
+  int tile_idx = tiles.size()-1;
+  tiles_idx.push_back(tile_idx);
+   
+  for(auto pu = pus.begin(); pu!=pus.end(); pu++){
+    for(vector<int>::iterator op=pu->ops.begin(); op!=pu->ops.end(); op++){
+      tiles[tile_idx].ops.push_back(*op);
+      ops[*op].tile = tile_idx;
+    }
+  }
+}
+
+QRHouseholderMtxMul::QRHouseholderMtxMul(vector<Operation>& ops, string &in_mn_name, const vector<int>& w, const vector<vector<int>>& in_mtx1, vector<vector<int>>& out_mtx){
+  string mn_name = in_mn_name;
+
+  name = "qr_householder_accmul";
+  cb = ComputeBlockLib::cbs[mn_name][name];
+  int width = cb->width;
+
+  int pre_idx = ops.size()-1;
+
+  int m = w.size();
+  int n = in_mtx1[0].size();
+
+  for(int i=0; i<m; i++){
+    vector<int> row(n,-1);
+    out_mtx.push_back(row);
+  }
+
+  for(int i=0; i<m; i++){
+    for(int j=0; j<m; j++){
+      int num_pu = (n%width==0)?n/width:n/width+1;
+      for(int l=0; l<num_pu; l++){
+        int num_acc_mul = (l==(num_pu-1))? min(width,n-l*width): width;
+	PatternUnit pu;
+	pre_idx++;
+	Operation op1;
+	op1.idx = pre_idx;
+	op1.fu = FunctionUnitLib::MUL;
+	op1.in.push_back(w[i]);
+	op1.in.push_back(w[j]);
+	ops.push_back(op1);
+	pu.ops.push_back(op1.idx);
+
+	pre_idx++;
+	Operation op2;
+	op2.idx = pre_idx;
+	op2.fu = FunctionUnitLib::SUB;
+	op2.in.push_back(op1.idx);
+	ops.push_back(op2);
+	pu.ops.push_back(op2.idx);
+
+	for(int k=0; k<num_acc_mul; k++){
+	  int l_idx = l*width+k;
+	  pre_idx++;
+	  Operation op3;
+	  op3.idx = pre_idx;
+	  op3.fu = FunctionUnitLib::MUL;
+	  op3.in.push_back(op2.idx);
+	  op3.in.push_back(in_mtx1[j][l_idx]);
+	  Operation opt(op3);
+	  ops.push_back(opt);
+	  pu.ops.push_back(op3.idx);
+	  
+	  pre_idx++;
+	  Operation op4;
+	  op4.idx = pre_idx;
+	  op4.fu = FunctionUnitLib::ADD;
+	  op4.in.push_back(out_mtx[i][l_idx]);
+	  op4.in.push_back(op3.idx);
+	  ops.push_back(op4);
+	  pu.ops.push_back(op4.idx);
+	  out_mtx[i][l_idx] = op4.idx;
+	}
+	pus.push_back(pu);
+      }
+    }
+  }
+}
+
+void QRHouseholderMtxMul::TileGen(vector<Tile>& tiles, vector<Operation>& ops){
+  int num_tile = pus.size();
+
+  int tile_idx_start = tiles.size();
+  for(int i=0; i<num_tile; i++){
+    Tile tile(cb);
+    tile.latency = cb->latency;
+    tile.pattern_name = name;
+    tile.mn_name = mn_name;
+    tiles.push_back(tile);
+    tiles_idx.push_back(tiles.size()-1);
+  }
+
+  for(vector<PatternUnit>::iterator pu=pus.begin(); pu!=pus.end(); pu++){
+    int idx = pu-pus.begin();
+    int tile_idx = tile_idx_start + idx;
+    //add pu to the tiles[tile_idx];
+    for(vector<int>::iterator op=pu->ops.begin(); op!=pu->ops.end(); op++){
+      tiles[tile_idx].ops.push_back(*op);
+      ops[*op].tile = tile_idx;
+    }
+  }
+}
+
 /*
 Sub_mtx::Sub_mtx(vector<Operation> &ops, string &in_mn_name, const vector<vector<int>> &in_mtx1, const vector<vector<int>> &in_mtx2, vector<vector<int>> &out_mtx):mn_name(in_mn_name){
   int pre_idx = ops.size()-1;
@@ -1534,8 +1819,10 @@ Sub_mtx::Sub_mtx(vector<Operation> &ops, string &in_mn_name, const vector<vector
 
   cb = ComputeBlockLib::cbs[mn_name]["sub"];
 }
+*/
 
-SquareAcc_vec::SquareAcc_vec(vector<Operation> &ops, string &in_mn_name, const vector<int> &in_vec, int &out):mn_name(in_mn_name){
+SquareAcc_vec::SquareAcc_vec(vector<Operation> &ops, string &in_mn_name, const vector<int> &in_vec, int &out){
+  mn_name = in_mn_name;
   int pre_idx = ops.size()-1;
 
   for(size_t i=0; i<in_vec.size(); i++){
@@ -1571,12 +1858,38 @@ SquareAcc_vec::SquareAcc_vec(vector<Operation> &ops, string &in_mn_name, const v
     pus.push_back(pu);
   }
 
-  name = "Pattern: sum of element square";
+  name = "acc_mul";
   description = "Sum of element square in the vector";
 
-  cb = ComputeBlockLib::cbs[mn_name]["mul_acc"];
+  cb = ComputeBlockLib::cbs[mn_name][name];
 }
 
+void SquareAcc_vec::TileGen(vector<Tile>&tiles, vector<Operation>&ops){
+  int num_tile = pus.size();
+
+  int tile_idx_start = tiles.size();
+  for(int i=0; i<num_tile; i++){
+    Tile tile(cb);
+    tile.latency = cb->latency;
+    tile.pattern_name = name;
+    tile.mn_name = mn_name;
+    tiles.push_back(tile);
+    tiles_idx.push_back(tiles.size()-1);
+  }
+
+  for(vector<PatternUnit>::iterator pu=pus.begin(); pu!=pus.end(); pu++){
+    int idx = pu-pus.begin();
+    int tile_idx = tile_idx_start + idx;
+    //add pu to the tiles[tile_idx];
+    for(vector<int>::iterator op=pu->ops.begin(); op!=pu->ops.end(); op++){
+      tiles[tile_idx].ops.push_back(*op);
+      ops[*op].tile = tile_idx;
+    }
+  }
+}
+
+
+/*
 //square acc of mtx col
 SquareAcc_mtx::SquareAcc_mtx(vector<Operation> &ops, string &in_mn_name, const vector<vector<int>> &in_mtx, vector<int> &out_vec):mn_name(in_mn_name){
   int pre_idx = ops.size()-1;

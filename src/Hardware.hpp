@@ -19,71 +19,89 @@ class ComputeBlock{
 
     string name;
     const ComputeBlockUnit* cb_unit;
-    int width;
+    int num;
     int stage;
     int latency;
+    int width = 1;
 };
+
+ComputeBlock* iniCBWrapper(string name, int num, int stage=1, int width=1);
 
 class CB_Load: public ComputeBlock{
   public:
-    CB_Load(string in_name, int in_width);
+    CB_Load(string in_name, int in_num);
 };
 
 class CB_Store: public ComputeBlock{
   public:
-    CB_Store(string in_name, int in_width);
+    CB_Store(string in_name, int in_num);
 };
 
 class CB_Copy: public ComputeBlock{
   public:
-    CB_Copy(string in_name, int in_width);
-};
-
-class CB_Sub: public ComputeBlock{
-  public:
-    CB_Sub(string in_name, int in_width);
+    CB_Copy(string in_name, int in_num);
 };
 
 class CB_Div: public ComputeBlock{
   public:
-    CB_Div(string in_name, int in_width);
+    CB_Div(string in_name, int in_num);
+};
+
+class CB_Mul: public ComputeBlock{
+  public:
+    CB_Mul(string in_name, int in_num);
 };
 
 class CB_DivRoot: public ComputeBlock{
   public:
-    CB_DivRoot(string in_name, int in_width);
+    CB_DivRoot(string in_name, int in_num);
 };
 
 class CB_MulAcc: public ComputeBlock{
   public:
-    CB_MulAcc(bool in_is_add, string in_name, int in_width, int in_stage);
+    CB_MulAcc(bool in_is_add, string in_name, int in_num, int in_stage);
     void updateStage(int in_stage);
     int LiveinReadCycle(int livein_idx);
 
-    int latency_rw_c;
     bool is_add;
+    int latency_rw_c;
+    int initial_latency;
 };
 
 class CB_Acc: public ComputeBlock{
   public:
-    CB_Acc(string in_name, int in_width, int in_stage);
+    CB_Acc(string in_name, int in_num, int in_stage);
     void updateStage(int in_stage);
+    int LiveinReadCycle(int livein_idx);
+};
+
+class CB_QRMulAcc: public ComputeBlock{
+  public:
+    CB_QRMulAcc(string in_name, int in_width, int in_num, int in_stage);
+    int LiveinReadCycle(int livein_idx);
+
+    int latency_rw_c;
+};
+
+class CB_QRHouseholderPara: public ComputeBlock{
+  public:
+    CB_QRHouseholderPara(string in_name, int in_num);
     int LiveinReadCycle(int livein_idx);
 };
 
 class CB_Root: public ComputeBlock{
   public:
-    CB_Root(string in_name, int in_width);
+    CB_Root(string in_name, int in_num);
 };
 
 class CB_JacobiS: public ComputeBlock{
   public:
-    CB_JacobiS(string in_name);
+    CB_JacobiS(string in_name, int in_num);
 };
 
 class CB_GivensS: public ComputeBlock{
   public:
-    CB_GivensS(string in_name);
+    CB_GivensS(string in_name, int in_num);
 };
 
 /*
