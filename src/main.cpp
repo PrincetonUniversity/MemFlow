@@ -46,8 +46,6 @@ map<string, int> fus;
 
 int main(int argc, char* argv[]){
 
-  int git_test = 0;
-
   //uncommited change
   //input data size
   int m;
