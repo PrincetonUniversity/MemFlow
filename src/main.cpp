@@ -82,11 +82,9 @@ int main(int argc, char* argv[]){
   //uint64_t cpu_freq = 0;
   dram->setCPUClockSpeed(cpu_freq);
 
-  //set fus latency
+  //set function units latency
   fus["add"] = 10;
-  //fus["add"] = 1;
   fus["mul"] = 5;
-  //fus["mul"] = 1;
   fus["sub"] = 10;
   fus["div"] = 5;
   fus["sqrt"] = 10;
@@ -94,7 +92,6 @@ int main(int argc, char* argv[]){
   Application appli(app, m, n, k);
   appli.setup();
   appli.run();
-  //appli.test_mntemp();
 
   /*
   ofstream outfile;
