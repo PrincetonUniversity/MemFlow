@@ -14,6 +14,16 @@ namespace ComputeBlockTopo
 }
 */
 
+int MinMem(int blk_dimi, int blk_dimj, int blk_diml);
+
+unsigned long long SpillCase1(int blk_size, int num_blk, int num_blk_mem);
+unsigned long long SpillCase2(int blk_size, int num_blk, int num_blk_mem);
+unsigned long long SpillCase3(int blk_size, int num_blk, int num_blk_mem);
+unsigned long long SpillCase4(int blk_size, int num_blk, int num_blk_mem);
+unsigned long long SpillCase5(int blk_size, int num_blk, int num_blk_mem);
+unsigned long long SpillCase6(int blk_size, int num_blk, int num_blk_mem);
+
+
 struct FunctionUnit{
 	string name;
 	int latency;

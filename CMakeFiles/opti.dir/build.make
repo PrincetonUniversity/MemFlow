@@ -393,28 +393,124 @@ CMakeFiles/opti.dir/src/ProcessConfig.cpp.o.provides: CMakeFiles/opti.dir/src/Pr
 CMakeFiles/opti.dir/src/ProcessConfig.cpp.o.provides.build: CMakeFiles/opti.dir/src/ProcessConfig.cpp.o
 
 
-CMakeFiles/opti.dir/src/Application.cpp.o: CMakeFiles/opti.dir/flags.make
-CMakeFiles/opti.dir/src/Application.cpp.o: src/Application.cpp
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/u/qnie/research/MappingOpti/ALG/CMakeFiles --progress-num=$(CMAKE_PROGRESS_15) "Building CXX object CMakeFiles/opti.dir/src/Application.cpp.o"
-	/usr/bin/c++   $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/opti.dir/src/Application.cpp.o -c /u/qnie/research/MappingOpti/ALG/src/Application.cpp
+CMakeFiles/opti.dir/src/Workload.cpp.o: CMakeFiles/opti.dir/flags.make
+CMakeFiles/opti.dir/src/Workload.cpp.o: src/Workload.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/u/qnie/research/MappingOpti/ALG/CMakeFiles --progress-num=$(CMAKE_PROGRESS_15) "Building CXX object CMakeFiles/opti.dir/src/Workload.cpp.o"
+	/usr/bin/c++   $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/opti.dir/src/Workload.cpp.o -c /u/qnie/research/MappingOpti/ALG/src/Workload.cpp
 
-CMakeFiles/opti.dir/src/Application.cpp.i: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/opti.dir/src/Application.cpp.i"
-	/usr/bin/c++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /u/qnie/research/MappingOpti/ALG/src/Application.cpp > CMakeFiles/opti.dir/src/Application.cpp.i
+CMakeFiles/opti.dir/src/Workload.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/opti.dir/src/Workload.cpp.i"
+	/usr/bin/c++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /u/qnie/research/MappingOpti/ALG/src/Workload.cpp > CMakeFiles/opti.dir/src/Workload.cpp.i
 
-CMakeFiles/opti.dir/src/Application.cpp.s: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/opti.dir/src/Application.cpp.s"
-	/usr/bin/c++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /u/qnie/research/MappingOpti/ALG/src/Application.cpp -o CMakeFiles/opti.dir/src/Application.cpp.s
+CMakeFiles/opti.dir/src/Workload.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/opti.dir/src/Workload.cpp.s"
+	/usr/bin/c++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /u/qnie/research/MappingOpti/ALG/src/Workload.cpp -o CMakeFiles/opti.dir/src/Workload.cpp.s
 
-CMakeFiles/opti.dir/src/Application.cpp.o.requires:
+CMakeFiles/opti.dir/src/Workload.cpp.o.requires:
 
-.PHONY : CMakeFiles/opti.dir/src/Application.cpp.o.requires
+.PHONY : CMakeFiles/opti.dir/src/Workload.cpp.o.requires
 
-CMakeFiles/opti.dir/src/Application.cpp.o.provides: CMakeFiles/opti.dir/src/Application.cpp.o.requires
-	$(MAKE) -f CMakeFiles/opti.dir/build.make CMakeFiles/opti.dir/src/Application.cpp.o.provides.build
-.PHONY : CMakeFiles/opti.dir/src/Application.cpp.o.provides
+CMakeFiles/opti.dir/src/Workload.cpp.o.provides: CMakeFiles/opti.dir/src/Workload.cpp.o.requires
+	$(MAKE) -f CMakeFiles/opti.dir/build.make CMakeFiles/opti.dir/src/Workload.cpp.o.provides.build
+.PHONY : CMakeFiles/opti.dir/src/Workload.cpp.o.provides
 
-CMakeFiles/opti.dir/src/Application.cpp.o.provides.build: CMakeFiles/opti.dir/src/Application.cpp.o
+CMakeFiles/opti.dir/src/Workload.cpp.o.provides.build: CMakeFiles/opti.dir/src/Workload.cpp.o
+
+
+CMakeFiles/opti.dir/src/Workload_MM.cpp.o: CMakeFiles/opti.dir/flags.make
+CMakeFiles/opti.dir/src/Workload_MM.cpp.o: src/Workload_MM.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/u/qnie/research/MappingOpti/ALG/CMakeFiles --progress-num=$(CMAKE_PROGRESS_16) "Building CXX object CMakeFiles/opti.dir/src/Workload_MM.cpp.o"
+	/usr/bin/c++   $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/opti.dir/src/Workload_MM.cpp.o -c /u/qnie/research/MappingOpti/ALG/src/Workload_MM.cpp
+
+CMakeFiles/opti.dir/src/Workload_MM.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/opti.dir/src/Workload_MM.cpp.i"
+	/usr/bin/c++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /u/qnie/research/MappingOpti/ALG/src/Workload_MM.cpp > CMakeFiles/opti.dir/src/Workload_MM.cpp.i
+
+CMakeFiles/opti.dir/src/Workload_MM.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/opti.dir/src/Workload_MM.cpp.s"
+	/usr/bin/c++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /u/qnie/research/MappingOpti/ALG/src/Workload_MM.cpp -o CMakeFiles/opti.dir/src/Workload_MM.cpp.s
+
+CMakeFiles/opti.dir/src/Workload_MM.cpp.o.requires:
+
+.PHONY : CMakeFiles/opti.dir/src/Workload_MM.cpp.o.requires
+
+CMakeFiles/opti.dir/src/Workload_MM.cpp.o.provides: CMakeFiles/opti.dir/src/Workload_MM.cpp.o.requires
+	$(MAKE) -f CMakeFiles/opti.dir/build.make CMakeFiles/opti.dir/src/Workload_MM.cpp.o.provides.build
+.PHONY : CMakeFiles/opti.dir/src/Workload_MM.cpp.o.provides
+
+CMakeFiles/opti.dir/src/Workload_MM.cpp.o.provides.build: CMakeFiles/opti.dir/src/Workload_MM.cpp.o
+
+
+CMakeFiles/opti.dir/src/Workload_QR.cpp.o: CMakeFiles/opti.dir/flags.make
+CMakeFiles/opti.dir/src/Workload_QR.cpp.o: src/Workload_QR.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/u/qnie/research/MappingOpti/ALG/CMakeFiles --progress-num=$(CMAKE_PROGRESS_17) "Building CXX object CMakeFiles/opti.dir/src/Workload_QR.cpp.o"
+	/usr/bin/c++   $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/opti.dir/src/Workload_QR.cpp.o -c /u/qnie/research/MappingOpti/ALG/src/Workload_QR.cpp
+
+CMakeFiles/opti.dir/src/Workload_QR.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/opti.dir/src/Workload_QR.cpp.i"
+	/usr/bin/c++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /u/qnie/research/MappingOpti/ALG/src/Workload_QR.cpp > CMakeFiles/opti.dir/src/Workload_QR.cpp.i
+
+CMakeFiles/opti.dir/src/Workload_QR.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/opti.dir/src/Workload_QR.cpp.s"
+	/usr/bin/c++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /u/qnie/research/MappingOpti/ALG/src/Workload_QR.cpp -o CMakeFiles/opti.dir/src/Workload_QR.cpp.s
+
+CMakeFiles/opti.dir/src/Workload_QR.cpp.o.requires:
+
+.PHONY : CMakeFiles/opti.dir/src/Workload_QR.cpp.o.requires
+
+CMakeFiles/opti.dir/src/Workload_QR.cpp.o.provides: CMakeFiles/opti.dir/src/Workload_QR.cpp.o.requires
+	$(MAKE) -f CMakeFiles/opti.dir/build.make CMakeFiles/opti.dir/src/Workload_QR.cpp.o.provides.build
+.PHONY : CMakeFiles/opti.dir/src/Workload_QR.cpp.o.provides
+
+CMakeFiles/opti.dir/src/Workload_QR.cpp.o.provides.build: CMakeFiles/opti.dir/src/Workload_QR.cpp.o
+
+
+CMakeFiles/opti.dir/src/Workload_LU.cpp.o: CMakeFiles/opti.dir/flags.make
+CMakeFiles/opti.dir/src/Workload_LU.cpp.o: src/Workload_LU.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/u/qnie/research/MappingOpti/ALG/CMakeFiles --progress-num=$(CMAKE_PROGRESS_18) "Building CXX object CMakeFiles/opti.dir/src/Workload_LU.cpp.o"
+	/usr/bin/c++   $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/opti.dir/src/Workload_LU.cpp.o -c /u/qnie/research/MappingOpti/ALG/src/Workload_LU.cpp
+
+CMakeFiles/opti.dir/src/Workload_LU.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/opti.dir/src/Workload_LU.cpp.i"
+	/usr/bin/c++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /u/qnie/research/MappingOpti/ALG/src/Workload_LU.cpp > CMakeFiles/opti.dir/src/Workload_LU.cpp.i
+
+CMakeFiles/opti.dir/src/Workload_LU.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/opti.dir/src/Workload_LU.cpp.s"
+	/usr/bin/c++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /u/qnie/research/MappingOpti/ALG/src/Workload_LU.cpp -o CMakeFiles/opti.dir/src/Workload_LU.cpp.s
+
+CMakeFiles/opti.dir/src/Workload_LU.cpp.o.requires:
+
+.PHONY : CMakeFiles/opti.dir/src/Workload_LU.cpp.o.requires
+
+CMakeFiles/opti.dir/src/Workload_LU.cpp.o.provides: CMakeFiles/opti.dir/src/Workload_LU.cpp.o.requires
+	$(MAKE) -f CMakeFiles/opti.dir/build.make CMakeFiles/opti.dir/src/Workload_LU.cpp.o.provides.build
+.PHONY : CMakeFiles/opti.dir/src/Workload_LU.cpp.o.provides
+
+CMakeFiles/opti.dir/src/Workload_LU.cpp.o.provides.build: CMakeFiles/opti.dir/src/Workload_LU.cpp.o
+
+
+CMakeFiles/opti.dir/src/Util.cpp.o: CMakeFiles/opti.dir/flags.make
+CMakeFiles/opti.dir/src/Util.cpp.o: src/Util.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/u/qnie/research/MappingOpti/ALG/CMakeFiles --progress-num=$(CMAKE_PROGRESS_19) "Building CXX object CMakeFiles/opti.dir/src/Util.cpp.o"
+	/usr/bin/c++   $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/opti.dir/src/Util.cpp.o -c /u/qnie/research/MappingOpti/ALG/src/Util.cpp
+
+CMakeFiles/opti.dir/src/Util.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/opti.dir/src/Util.cpp.i"
+	/usr/bin/c++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /u/qnie/research/MappingOpti/ALG/src/Util.cpp > CMakeFiles/opti.dir/src/Util.cpp.i
+
+CMakeFiles/opti.dir/src/Util.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/opti.dir/src/Util.cpp.s"
+	/usr/bin/c++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /u/qnie/research/MappingOpti/ALG/src/Util.cpp -o CMakeFiles/opti.dir/src/Util.cpp.s
+
+CMakeFiles/opti.dir/src/Util.cpp.o.requires:
+
+.PHONY : CMakeFiles/opti.dir/src/Util.cpp.o.requires
+
+CMakeFiles/opti.dir/src/Util.cpp.o.provides: CMakeFiles/opti.dir/src/Util.cpp.o.requires
+	$(MAKE) -f CMakeFiles/opti.dir/build.make CMakeFiles/opti.dir/src/Util.cpp.o.provides.build
+.PHONY : CMakeFiles/opti.dir/src/Util.cpp.o.provides
+
+CMakeFiles/opti.dir/src/Util.cpp.o.provides.build: CMakeFiles/opti.dir/src/Util.cpp.o
 
 
 # Object files for target opti
@@ -433,7 +529,11 @@ opti_OBJECTS = \
 "CMakeFiles/opti.dir/src/ComputationGraph.cpp.o" \
 "CMakeFiles/opti.dir/src/Hardware.cpp.o" \
 "CMakeFiles/opti.dir/src/ProcessConfig.cpp.o" \
-"CMakeFiles/opti.dir/src/Application.cpp.o"
+"CMakeFiles/opti.dir/src/Workload.cpp.o" \
+"CMakeFiles/opti.dir/src/Workload_MM.cpp.o" \
+"CMakeFiles/opti.dir/src/Workload_QR.cpp.o" \
+"CMakeFiles/opti.dir/src/Workload_LU.cpp.o" \
+"CMakeFiles/opti.dir/src/Util.cpp.o"
 
 # External object files for target opti
 opti_EXTERNAL_OBJECTS =
@@ -452,11 +552,15 @@ opti: CMakeFiles/opti.dir/src/Pattern.cpp.o
 opti: CMakeFiles/opti.dir/src/ComputationGraph.cpp.o
 opti: CMakeFiles/opti.dir/src/Hardware.cpp.o
 opti: CMakeFiles/opti.dir/src/ProcessConfig.cpp.o
-opti: CMakeFiles/opti.dir/src/Application.cpp.o
+opti: CMakeFiles/opti.dir/src/Workload.cpp.o
+opti: CMakeFiles/opti.dir/src/Workload_MM.cpp.o
+opti: CMakeFiles/opti.dir/src/Workload_QR.cpp.o
+opti: CMakeFiles/opti.dir/src/Workload_LU.cpp.o
+opti: CMakeFiles/opti.dir/src/Util.cpp.o
 opti: CMakeFiles/opti.dir/build.make
 opti: DRAMSim2/libdramsim.so
 opti: CMakeFiles/opti.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/u/qnie/research/MappingOpti/ALG/CMakeFiles --progress-num=$(CMAKE_PROGRESS_16) "Linking CXX executable opti"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/u/qnie/research/MappingOpti/ALG/CMakeFiles --progress-num=$(CMAKE_PROGRESS_20) "Linking CXX executable opti"
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/opti.dir/link.txt --verbose=$(VERBOSE)
 
 # Rule to build all files generated by this target.
@@ -478,7 +582,11 @@ CMakeFiles/opti.dir/requires: CMakeFiles/opti.dir/src/Pattern.cpp.o.requires
 CMakeFiles/opti.dir/requires: CMakeFiles/opti.dir/src/ComputationGraph.cpp.o.requires
 CMakeFiles/opti.dir/requires: CMakeFiles/opti.dir/src/Hardware.cpp.o.requires
 CMakeFiles/opti.dir/requires: CMakeFiles/opti.dir/src/ProcessConfig.cpp.o.requires
-CMakeFiles/opti.dir/requires: CMakeFiles/opti.dir/src/Application.cpp.o.requires
+CMakeFiles/opti.dir/requires: CMakeFiles/opti.dir/src/Workload.cpp.o.requires
+CMakeFiles/opti.dir/requires: CMakeFiles/opti.dir/src/Workload_MM.cpp.o.requires
+CMakeFiles/opti.dir/requires: CMakeFiles/opti.dir/src/Workload_QR.cpp.o.requires
+CMakeFiles/opti.dir/requires: CMakeFiles/opti.dir/src/Workload_LU.cpp.o.requires
+CMakeFiles/opti.dir/requires: CMakeFiles/opti.dir/src/Util.cpp.o.requires
 
 .PHONY : CMakeFiles/opti.dir/requires
 

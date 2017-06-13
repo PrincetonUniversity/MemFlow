@@ -255,14 +255,14 @@ void MemoryTrack::getMaxNumLive(){
   cout << endl;
 }
 
-void MemoryTrack::getOptiPara(Parameters* in_opti_para){
-  opti_para = in_opti_para;
-}
+//void MemoryTrack::getOptiPara(Parameters* in_opti_para){
+//  opti_para = in_opti_para;
+///}
 
 void MemoryTrack::Slice2Dblks(){
   cout << "in dblk slicing" << endl;
   int bank_start = 0;
-  for(auto &i: opti_para->dblks){
+  for(auto &i: opti_para.dblks){
     sp_regions[i.first] = SPRegion(i.first, bank_start, bank_start+i.second.num_bank-1);
     bank_start += i.second.num_bank;
 
@@ -275,7 +275,7 @@ void MemoryTrack::Slice2Dblks(){
 void MemoryTrack::Slice2Dblks_debug(){
   cout << "in dblk slicing" << endl;
   int bank_start = 0;
-  for(auto &i: opti_para->dblks){
+  for(auto &i: opti_para.dblks){
     sp_regions[i.first] = SPRegion(i.first, bank_start, bank_start+i.second.num_bank-1);
     bank_start += i.second.num_bank;
   }
@@ -367,7 +367,7 @@ void MemoryTrack::PrintInfo(){
   cout << endl << "SRAM parameters: " << endl;
   cout << "Bank allocation: " << endl;
   for(auto &i: sp_regions){
-    cout << "    #banks for " << i.first << ": " << opti_para->dblks[i.first].num_bank << "(" << i.second.start_bank << "-" << i.second.end_bank << ")" << endl;
+    cout << "    #banks for " << i.first << ": " << opti_para.dblks[i.first].num_bank << "(" << i.second.start_bank << "-" << i.second.end_bank << ")" << endl;
     cout << "      #blks can be allocated: " << i.second.num_blks << endl;
   }
 }

@@ -7,7 +7,7 @@
 #include<ctime>
 #include<memory>
 
-#include "OptiMacroNode.hpp"
+#include "Parameters.hpp"
 #include "ComputationGraph.hpp"
 #include "Hardware.hpp"
 #include "CGScheduling.hpp"
@@ -15,7 +15,9 @@
 #include "Setting.hpp"
 #include "ProcessConfig.hpp"
 #include "Memory.hpp"
-#include "Application.hpp"
+#include "Workload_MM.hpp"
+#include "Workload_QR.hpp"
+#include "Workload_LU.hpp"
 #include "Data.hpp"
 #include "./../DRAMSim2/DRAMSim.h"
 
@@ -91,9 +93,27 @@ int main(int argc, char* argv[]){
   fus["div"] = 5;
   fus["sqrt"] = 10;
 
-  Application appli(app, m, n, k);
-  appli.setup();
-  appli.run();
+  //Workload* p_workload;
+  if(app == "MM"){
+    cout << "create workload mm" << endl;
+    Workload_MM mm(app, m, n, k);
+    mm.setup();
+    mm.run();
+  }
+  else if(app == "LU"){
+    cout << "create workload lu" << endl;
+    Workload_LU lu(app, m, n, k);
+    lu.setup();
+    lu.run();
+  }
+  else if(app == "QR"){
+    cout << "create workload qr" << endl;
+    Workload_QR qr(app, m, n, k);
+    qr.setup();
+    qr.run();
+  }
+  //p_workload->setup();
+  //p_workload->run();
   //appli.test_mntemp();
 
   /*

@@ -5,6 +5,7 @@
 #include<array>
 
 #include "OptiMacroNode.hpp"
+#include "Workload.hpp"
 #include "Setting.hpp"
 
 using namespace std;
@@ -16,115 +17,6 @@ LoopOrder::LoopOrder(string loop1, string loop2, string loop3){
 
   set = true;
 }
-/*
-void LoopOrder::setupLoopOrder(OptiMacroNode* opti_mn){
-  //set nospill matrix
-  matrix_nospill = (loop_idc[2] == "m")?"B":(loop_idc[2] == "n")?"A":"C";
-  if(matrix_nospill == "A"){
-    if(loop_idc[0] == "m"){
-      matrix_spilltype1 = "C";
-      dblk1_size = opti_mn->c;
-      num_dblk1_mem = opti_mn->num_cblk_mem;
-      num_dblk1_need = opti_mn->blk_n;
-      num_reuse1 = opti_mn->blk_k;
-      num_iterate = opti_mn->blk_m;
-      idx_mode1 = COL_IDX;
-
-      matrix_spilltype2 = "B";
-      dblk2_size = opti_mn->b;
-      num_dblk2_mem = opti_mn->num_bblk_mem;
-      num_dblk2_need = opti_mn->blk_k*opti_mn->blk_n;
-      num_reuse2 = opti_mn->blk_m;
-      idx_mode2 = ROWMAJOR_IDX;
-    }
-    else{
-      matrix_spilltype1 = "B";
-      dblk1_size = opti_mn->b;
-      num_dblk1_mem = opti_mn->num_bblk_mem;
-      num_dblk1_need = opti_mn->blk_n;
-      num_reuse1 = opti_mn->blk_m;
-      num_iterate = opti_mn->blk_k;
-      idx_mode1 = COL_IDX;
-      
-      matrix_spilltype2 = "C";
-      dblk2_size = opti_mn->c;
-      num_dblk2_mem = opti_mn->num_cblk_mem;
-      num_dblk2_need = opti_mn->blk_m*opti_mn->blk_n;
-      num_reuse2 = opti_mn->blk_k;
-      idx_mode2 = ROWMAJOR_IDX;
-    }
-  }
-  else if(matrix_nospill == "B"){
-    if(loop_idc[0] == "k"){
-      matrix_spilltype1 = "A";
-      dblk1_size = opti_mn->a;
-      num_dblk1_mem = opti_mn->num_ablk_mem;
-      num_dblk1_need = opti_mn->blk_m;
-      num_reuse1 = opti_mn->blk_n;
-      num_iterate = opti_mn->blk_k;
-      idx_mode1 = ROW_IDX;
-
-      matrix_spilltype2 = "C";
-      dblk2_size = opti_mn->c;
-      num_dblk2_mem = opti_mn->num_cblk_mem;
-      num_dblk2_need = opti_mn->blk_m*opti_mn->blk_n;
-      num_reuse2 = opti_mn->blk_k;
-      idx_mode2 = COLMAJOR_IDX;
-    }
-    else{
-      matrix_spilltype1 = "C";
-      dblk1_size = opti_mn->c;
-      num_dblk1_mem = opti_mn->num_cblk_mem;
-      num_dblk1_need = opti_mn->blk_m;
-      num_reuse1 = opti_mn->blk_k;
-      num_iterate = opti_mn->blk_n;
-      idx_mode1 = ROW_IDX;
-      
-      matrix_spilltype2 = "A";
-      dblk2_size = opti_mn->a;
-      num_dblk2_mem = opti_mn->num_ablk_mem;
-      num_dblk2_need = opti_mn->blk_m*opti_mn->blk_k;
-      num_reuse2 = opti_mn->blk_n;
-      idx_mode2 = COLMAJOR_IDX;
-    }
-  }
-  else{
-    if(loop_idc[0] == "m"){
-      matrix_spilltype1 = "A";
-      dblk1_size = opti_mn->a;
-      num_dblk1_mem = opti_mn->num_ablk_mem;
-      num_dblk1_need = opti_mn->blk_k;
-      num_reuse1 = opti_mn->blk_n;
-      num_iterate = opti_mn->blk_m;
-      idx_mode1 = COL_IDX;
-      
-      matrix_spilltype2 = "B";
-      dblk2_size = opti_mn->b;
-      num_dblk2_mem = opti_mn->num_bblk_mem;
-      num_dblk2_need = opti_mn->blk_k*opti_mn->blk_n;
-      num_reuse2 = opti_mn->blk_m;
-      idx_mode2 = COLMAJOR_IDX;
-    }
-    else{
-      matrix_spilltype1 = "B";
-      dblk1_size = opti_mn->b;
-      num_dblk1_mem = opti_mn->num_bblk_mem;
-      num_dblk1_need = opti_mn->blk_k;
-      num_reuse1 = opti_mn->blk_m;
-      num_iterate = opti_mn->blk_n;
-      idx_mode1 = ROW_IDX;
-      
-      matrix_spilltype2 = "A";
-      dblk2_size = opti_mn->a;
-      num_dblk2_mem = opti_mn->num_ablk_mem;
-      num_dblk2_need = opti_mn->blk_k*opti_mn->blk_m;
-      num_reuse2 = opti_mn->blk_n;
-      idx_mode2 = ROWMAJOR_IDX;
-    }
-  }
-}
-*/
-
 
 void LoopOrder::setDblkSPAddrIdx(){
   data_arrays[matrix_nospill]->setDblkSPAddrIdx(ZERO_IDX);
@@ -223,12 +115,11 @@ void Parameters::PrintInfo(){
   cout << "Estimated number of spill2: " << num_spill2 << endl;
 }
 
-OptiMacroNode::OptiMacroNode(int in_m, int in_n, int in_k, Parameters& in_opti_para):opti_para(in_opti_para){
-  para.axes["i"].input_size = in_m;
-  para.axes["j"].input_size = in_n;
-  para.axes["l"].input_size = in_k;
+OptiMacroNode::OptiMacroNode(Workload* in_wl, Parameters& in_opti_para):opti_para(in_opti_para){
+  para.axes["i"].input_size = in_wl->m;
+  para.axes["j"].input_size = in_wl->n;
+  para.axes["l"].input_size = in_wl->k;
 }
-
 
 int MM_MinPort_new(int subblk_dimi, int subblk_dimj, int subblk_diml){
   int port_a = subblk_dimi*subblk_diml;
@@ -2638,9 +2529,9 @@ void OptiMacroNode::QR_optiPara(){
 }
 
 
-void OptiMacroNode::optiPara(){
+void OptiMacroNode::optiPara(Workload* wl){
   if(app == "MM"){
-    MM_optiPara();
+    wl->optiPara();
   }
   else if(app == "LU"){
     LU_optiPara();

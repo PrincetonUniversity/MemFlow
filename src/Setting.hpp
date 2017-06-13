@@ -9,6 +9,7 @@
 #include "Data.hpp"
 #include "../DRAMSim2/DRAMSim.h"
 #include "Memory.hpp"
+#include "Parameters.hpp"
 
 namespace ComputeBlockLib{
   extern map<string, map<string, ComputeBlock*>> cbs;

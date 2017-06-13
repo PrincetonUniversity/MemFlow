@@ -123,33 +123,6 @@ opti/fast:
 	$(MAKE) -f CMakeFiles/opti.dir/build.make CMakeFiles/opti.dir/build
 .PHONY : opti/fast
 
-src/Application.o: src/Application.cpp.o
-
-.PHONY : src/Application.o
-
-# target to build an object file
-src/Application.cpp.o:
-	$(MAKE) -f CMakeFiles/opti.dir/build.make CMakeFiles/opti.dir/src/Application.cpp.o
-.PHONY : src/Application.cpp.o
-
-src/Application.i: src/Application.cpp.i
-
-.PHONY : src/Application.i
-
-# target to preprocess a source file
-src/Application.cpp.i:
-	$(MAKE) -f CMakeFiles/opti.dir/build.make CMakeFiles/opti.dir/src/Application.cpp.i
-.PHONY : src/Application.cpp.i
-
-src/Application.s: src/Application.cpp.s
-
-.PHONY : src/Application.s
-
-# target to generate assembly for a file
-src/Application.cpp.s:
-	$(MAKE) -f CMakeFiles/opti.dir/build.make CMakeFiles/opti.dir/src/Application.cpp.s
-.PHONY : src/Application.cpp.s
-
 src/CGScheduling.o: src/CGScheduling.cpp.o
 
 .PHONY : src/CGScheduling.o
@@ -501,6 +474,141 @@ src/Scheduling.cpp.s:
 	$(MAKE) -f CMakeFiles/opti.dir/build.make CMakeFiles/opti.dir/src/Scheduling.cpp.s
 .PHONY : src/Scheduling.cpp.s
 
+src/Util.o: src/Util.cpp.o
+
+.PHONY : src/Util.o
+
+# target to build an object file
+src/Util.cpp.o:
+	$(MAKE) -f CMakeFiles/opti.dir/build.make CMakeFiles/opti.dir/src/Util.cpp.o
+.PHONY : src/Util.cpp.o
+
+src/Util.i: src/Util.cpp.i
+
+.PHONY : src/Util.i
+
+# target to preprocess a source file
+src/Util.cpp.i:
+	$(MAKE) -f CMakeFiles/opti.dir/build.make CMakeFiles/opti.dir/src/Util.cpp.i
+.PHONY : src/Util.cpp.i
+
+src/Util.s: src/Util.cpp.s
+
+.PHONY : src/Util.s
+
+# target to generate assembly for a file
+src/Util.cpp.s:
+	$(MAKE) -f CMakeFiles/opti.dir/build.make CMakeFiles/opti.dir/src/Util.cpp.s
+.PHONY : src/Util.cpp.s
+
+src/Workload.o: src/Workload.cpp.o
+
+.PHONY : src/Workload.o
+
+# target to build an object file
+src/Workload.cpp.o:
+	$(MAKE) -f CMakeFiles/opti.dir/build.make CMakeFiles/opti.dir/src/Workload.cpp.o
+.PHONY : src/Workload.cpp.o
+
+src/Workload.i: src/Workload.cpp.i
+
+.PHONY : src/Workload.i
+
+# target to preprocess a source file
+src/Workload.cpp.i:
+	$(MAKE) -f CMakeFiles/opti.dir/build.make CMakeFiles/opti.dir/src/Workload.cpp.i
+.PHONY : src/Workload.cpp.i
+
+src/Workload.s: src/Workload.cpp.s
+
+.PHONY : src/Workload.s
+
+# target to generate assembly for a file
+src/Workload.cpp.s:
+	$(MAKE) -f CMakeFiles/opti.dir/build.make CMakeFiles/opti.dir/src/Workload.cpp.s
+.PHONY : src/Workload.cpp.s
+
+src/Workload_LU.o: src/Workload_LU.cpp.o
+
+.PHONY : src/Workload_LU.o
+
+# target to build an object file
+src/Workload_LU.cpp.o:
+	$(MAKE) -f CMakeFiles/opti.dir/build.make CMakeFiles/opti.dir/src/Workload_LU.cpp.o
+.PHONY : src/Workload_LU.cpp.o
+
+src/Workload_LU.i: src/Workload_LU.cpp.i
+
+.PHONY : src/Workload_LU.i
+
+# target to preprocess a source file
+src/Workload_LU.cpp.i:
+	$(MAKE) -f CMakeFiles/opti.dir/build.make CMakeFiles/opti.dir/src/Workload_LU.cpp.i
+.PHONY : src/Workload_LU.cpp.i
+
+src/Workload_LU.s: src/Workload_LU.cpp.s
+
+.PHONY : src/Workload_LU.s
+
+# target to generate assembly for a file
+src/Workload_LU.cpp.s:
+	$(MAKE) -f CMakeFiles/opti.dir/build.make CMakeFiles/opti.dir/src/Workload_LU.cpp.s
+.PHONY : src/Workload_LU.cpp.s
+
+src/Workload_MM.o: src/Workload_MM.cpp.o
+
+.PHONY : src/Workload_MM.o
+
+# target to build an object file
+src/Workload_MM.cpp.o:
+	$(MAKE) -f CMakeFiles/opti.dir/build.make CMakeFiles/opti.dir/src/Workload_MM.cpp.o
+.PHONY : src/Workload_MM.cpp.o
+
+src/Workload_MM.i: src/Workload_MM.cpp.i
+
+.PHONY : src/Workload_MM.i
+
+# target to preprocess a source file
+src/Workload_MM.cpp.i:
+	$(MAKE) -f CMakeFiles/opti.dir/build.make CMakeFiles/opti.dir/src/Workload_MM.cpp.i
+.PHONY : src/Workload_MM.cpp.i
+
+src/Workload_MM.s: src/Workload_MM.cpp.s
+
+.PHONY : src/Workload_MM.s
+
+# target to generate assembly for a file
+src/Workload_MM.cpp.s:
+	$(MAKE) -f CMakeFiles/opti.dir/build.make CMakeFiles/opti.dir/src/Workload_MM.cpp.s
+.PHONY : src/Workload_MM.cpp.s
+
+src/Workload_QR.o: src/Workload_QR.cpp.o
+
+.PHONY : src/Workload_QR.o
+
+# target to build an object file
+src/Workload_QR.cpp.o:
+	$(MAKE) -f CMakeFiles/opti.dir/build.make CMakeFiles/opti.dir/src/Workload_QR.cpp.o
+.PHONY : src/Workload_QR.cpp.o
+
+src/Workload_QR.i: src/Workload_QR.cpp.i
+
+.PHONY : src/Workload_QR.i
+
+# target to preprocess a source file
+src/Workload_QR.cpp.i:
+	$(MAKE) -f CMakeFiles/opti.dir/build.make CMakeFiles/opti.dir/src/Workload_QR.cpp.i
+.PHONY : src/Workload_QR.cpp.i
+
+src/Workload_QR.s: src/Workload_QR.cpp.s
+
+.PHONY : src/Workload_QR.s
+
+# target to generate assembly for a file
+src/Workload_QR.cpp.s:
+	$(MAKE) -f CMakeFiles/opti.dir/build.make CMakeFiles/opti.dir/src/Workload_QR.cpp.s
+.PHONY : src/Workload_QR.cpp.s
+
 src/main.o: src/main.cpp.o
 
 .PHONY : src/main.o
@@ -537,9 +645,6 @@ help:
 	@echo "... rebuild_cache"
 	@echo "... edit_cache"
 	@echo "... opti"
-	@echo "... src/Application.o"
-	@echo "... src/Application.i"
-	@echo "... src/Application.s"
 	@echo "... src/CGScheduling.o"
 	@echo "... src/CGScheduling.i"
 	@echo "... src/CGScheduling.s"
@@ -579,6 +684,21 @@ help:
 	@echo "... src/Scheduling.o"
 	@echo "... src/Scheduling.i"
 	@echo "... src/Scheduling.s"
+	@echo "... src/Util.o"
+	@echo "... src/Util.i"
+	@echo "... src/Util.s"
+	@echo "... src/Workload.o"
+	@echo "... src/Workload.i"
+	@echo "... src/Workload.s"
+	@echo "... src/Workload_LU.o"
+	@echo "... src/Workload_LU.i"
+	@echo "... src/Workload_LU.s"
+	@echo "... src/Workload_MM.o"
+	@echo "... src/Workload_MM.i"
+	@echo "... src/Workload_MM.s"
+	@echo "... src/Workload_QR.o"
+	@echo "... src/Workload_QR.i"
+	@echo "... src/Workload_QR.s"
 	@echo "... src/main.o"
 	@echo "... src/main.i"
 	@echo "... src/main.s"

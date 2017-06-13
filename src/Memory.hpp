@@ -7,7 +7,7 @@
 #include <utility>
 
 #include "Hardware.hpp"
-#include "OptiMacroNode.hpp"
+//#include "OptiMacroNode.hpp"
 #include "Data.hpp"
 
 using namespace std;
@@ -124,9 +124,9 @@ class MemoryTrack{
 
     vector<int> max_num_live;
 
-    Parameters* opti_para;
+    //Parameters* opti_para;
 
-    void getOptiPara(Parameters* in_opti_para);
+    //void getOptiPara(Parameters* in_opti_para);
     void Slice2Dblks();
     void Slice2Dblks_debug();
     void Slice2Dblks_buffer();

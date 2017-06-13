@@ -13,7 +13,11 @@ file(REMOVE_RECURSE
   "CMakeFiles/opti.dir/src/ComputationGraph.cpp.o"
   "CMakeFiles/opti.dir/src/Hardware.cpp.o"
   "CMakeFiles/opti.dir/src/ProcessConfig.cpp.o"
-  "CMakeFiles/opti.dir/src/Application.cpp.o"
+  "CMakeFiles/opti.dir/src/Workload.cpp.o"
+  "CMakeFiles/opti.dir/src/Workload_MM.cpp.o"
+  "CMakeFiles/opti.dir/src/Workload_QR.cpp.o"
+  "CMakeFiles/opti.dir/src/Workload_LU.cpp.o"
+  "CMakeFiles/opti.dir/src/Util.cpp.o"
   "opti.pdb"
   "opti"
 )
